@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget picker preview: the tasks widget. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="250dp" android:height="110dp"
+    android:viewportWidth="250" android:viewportHeight="110">
+    <path android:fillColor="#FF000000" android:pathData="M20,0h210a20,20 0,0 1,20 20v70a20,20 0,0 1,-20 20h-210a20,20 0,0 1,-20 -20v-70a20,20 0,0 1,20 -20z" />
+    <path android:fillColor="#FFD71921" android:pathData="M16,14h3v3h-3zM20,14h3v3h-3zM24,14h3v3h-3zM16,18h3v3h-3zM24,18h3v3h-3zM16,22h3v3h-3zM24,22h3v3h-3zM16,26h3v3h-3zM20,26h3v3h-3zM24,26h3v3h-3z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M212,12a11,11 0,1 1,0 22a11,11 0,1 1,0 -22z" />
+    <path android:fillColor="#FFD71921" android:pathData="M212,19a4,4 0,1 1,0 8a4,4 0,1 1,0 -8z" />
+    <path android:strokeColor="#99FFFFFF" android:strokeWidth="1.5" android:fillColor="#00000000" android:pathData="M22,50a6,6 0,1 1,0 12a6,6 0,1 1,0 -12zM22,76a6,6 0,1 1,0 12a6,6 0,1 1,0 -12z" />
+    <path android:fillColor="#E6FFFFFF" android:pathData="M36,52h120v4h-120zM36,78h90v4h-90z" />
+    <path android:fillColor="#66FFFFFF" android:pathData="M36,60h60v3h-60zM36,86h50v3h-50z" />
+</vector>

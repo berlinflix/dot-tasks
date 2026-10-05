@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dot — Privacy Policy</title>
+  <style>
+    :root { color-scheme: light dark; --fg:#111; --muted:#666; --bg:#f5f5f6; --red:#d71921; }
+    @media (prefers-color-scheme: dark) { :root { --fg:#f2f2f2; --muted:#9a9a9f; --bg:#000; } }
+    body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.6 system-ui, sans-serif; }
+    main { max-width: 720px; margin: 0 auto; padding: 32px 16px 64px; }
+    h1 { font-family: ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; font-size: 20px; }
+    h2 { font-size: 17px; margin-top: 32px; }
+    .dot { display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--red); margin-right:10px; }
+    small { color: var(--muted); }
+  </style>
+</head>
+<body>
+<main>
+  <h1><span class="dot"></span>Dot · Privacy policy</h1>
+  <small>Effective 2 October 2026</small>
+
+  <p>Dot is a to-do app built so that your tasks stay private. This policy explains what the app handles and why.</p>
+
+  <h2>Your tasks are end-to-end encrypted</h2>
+  <p>Task titles, notes, lists, dates and reminder times are encrypted on your phone before they are uploaded.
+     The cloud copy (Google Firebase, Mumbai region) is ciphertext that neither we nor Google can read.
+     The key is held by you: on your phone, in an end-to-end encrypted Android Block Store backup protected by your screen lock,
+     and as a recovery key that only you have.</p>
+
+  <h2>What is collected</h2>
+  <ul>
+    <li><b>Account:</b> when you sign in with Google, Firebase Authentication receives your Google account id, email address and name, solely to identify your encrypted data and let you sign in.</li>
+    <li><b>Encrypted task data:</b> stored only so it can sync between your devices and survive reinstalling the app. The server also sees when records change and their approximate size.</li>
+    <li><b>App integrity:</b> Firebase App Check uses Google Play Integrity to confirm requests come from the genuine app.</li>
+  </ul>
+  <p>Dot contains <b>no advertising, analytics or tracking SDKs</b> and does not sell or share data.</p>
+
+  <h2>Voice input</h2>
+  <p>The microphone is used only while you add a task by voice. Speech is converted to text by Android's
+     on-device speech recognizer; the app never records audio to storage and never sends audio anywhere.</p>
+
+  <h2>On your phone</h2>
+  <p>The local database is encrypted (SQLCipher) with a key protected by the Android Keystore. App data is excluded from Android backups.</p>
+
+  <h2>Deleting your data</h2>
+  <p>In the app: Settings → Account &amp; sync → Delete account. This deletes your encrypted cloud data, the key backup and your account.
+     You can also use the <a href="delete.html">web deletion page</a>. Signing out removes all tasks from the phone.</p>
+
+  <h2>Contact</h2>
+  <p>Questions: <a href="mailto:CONTACT_EMAIL_PLACEHOLDER">CONTACT_EMAIL_PLACEHOLDER</a></p>
+</main>
+</body>
+</html>

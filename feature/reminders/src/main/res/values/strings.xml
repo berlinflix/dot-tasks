@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="channel_ring_name">Ringing reminders</string>
+    <string name="channel_ring_description">Rings like a call. Stays silent when the phone is on silent or Do Not Disturb.</string>
+    <string name="channel_quiet_name">Silent reminders</string>
+    <string name="channel_quiet_description">Shown when the phone is on silent or Do Not Disturb.</string>
+    <string name="channel_notify_name">Notification reminders</string>
+    <string name="channel_notify_description">Tasks set to notify instead of ring.</string>
+    <string name="channel_missed_name">Missed reminders</string>
+    <string name="channel_missed_description">Reminders that rang without an answer, or fired while the phone was off.</string>
+
+    <string name="reminder_public_title">Task reminder</string>
+    <string name="reminder_public_title_ring">Task reminder</string>
+    <string name="reminder_locked_body">Unlock to see details</string>
+    <string name="reminder_many">%1$d reminders</string>
+    <string name="reminder_missed_title">Missed: %1$s</string>
+
+    <string name="action_snooze_10">Snooze 10 min</string>
+    <string name="action_later">Later…</string>
+    <string name="action_done">Done</string>
+    <string name="action_snooze">Snooze</string>
+    <string name="action_open">Open</string>
+
+    <string name="ring_label">Reminder</string>
+    <string name="ring_more">+%1$d more</string>
+    <string name="ring_quick_10">+10 min</string>
+    <string name="ring_quick_60">+1 hour</string>
+    <string name="ring_pick">More…</string>
+</resources>

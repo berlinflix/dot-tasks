@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Exact, Doze-exempt reminders. User-granted ("Alarms & reminders"); Play-safe for any app. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Call-style full-screen ring screen over the lock screen. Declared in Play Console. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <application>
+        <!-- Fired by AlarmManager through an explicit, immutable PendingIntent only. -->
+        <receiver
+            android:name=".alarm.ReminderAlarmReceiver"
+            android:directBootAware="true"
+            android:exported="false" />
+
+        <!-- Notification actions (snooze / done / dismiss) and the ring timeout. -->
+        <receiver
+            android:name=".alarm.ReminderActionReceiver"
+            android:directBootAware="true"
+            android:exported="false" />
+
+        <!-- Exported only so the system can deliver these protected broadcasts. -->
+        <receiver
+            android:name=".alarm.SystemEventsReceiver"
+            android:directBootAware="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <activity
+            android:name=".ring.RingingActivity"
+            android:directBootAware="true"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:taskAffinity="dev.suyash.dot.ringing"
+            android:theme="@style/Theme.Dot.Ringing"
+            android:turnScreenOn="true" />
+
+        <activity
+            android:name=".ring.SnoozePickerActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:showWhenLocked="true"
+            android:taskAffinity="dev.suyash.dot.snooze"
+            android:theme="@style/Theme.Dot.Translucent" />
+    </application>
+</manifest>

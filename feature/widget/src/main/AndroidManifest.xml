@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Widget providers must be exported so the launcher/system can deliver APPWIDGET_UPDATE. -->
+        <receiver
+            android:name=".MicWidgetReceiver"
+            android:exported="true"
+            android:label="@string/mic_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/mic_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".MicPillWidgetReceiver"
+            android:exported="true"
+            android:label="@string/mic_pill_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/mic_pill_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".TasksWidgetReceiver"
+            android:exported="true"
+            android:label="@string/tasks_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/tasks_widget_info" />
+        </receiver>
+    </application>
+</manifest>

@@ -1,0 +1,61 @@
+rules_version = '2';
+
+// Dot: the server is a dumb store of ciphertext. Each user can touch only their own subtree, only
+// with Google sign-in, and only with well-formed encrypted records. Everything else is denied.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedInAs(uid) {
+      return request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+
+    // Encrypted task/list records: { v, ct, updatedAt, del }.
+    //  - ct      : AEAD ciphertext (XChaCha20-Poly1305), bound to uid + record id + version.
+    //  - v       : optimistic-concurrency version; every write must be exactly +1.
+    //  - updatedAt: server time only (clients can't backdate or forge the pull cursor).
+    function validRecord(rid) {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['v', 'ct', 'updatedAt', 'del'])
+        && d.keys().hasAll(['v', 'ct', 'updatedAt', 'del'])
+        && d.v is int
+        && d.ct is bytes && d.ct.size() > 0 && d.ct.size() <= 65536
+        && d.updatedAt == request.time
+        && d.del is bool
+        && rid.size() >= 8 && rid.size() <= 64;
+    }
+
+    match /users/{uid}/records/{rid} {
+      allow read: if signedInAs(uid);
+      allow create: if signedInAs(uid) && validRecord(rid) && request.resource.data.v == 1;
+      allow update: if signedInAs(uid) && validRecord(rid) && request.resource.data.v == resource.data.v + 1;
+      allow delete: if signedInAs(uid);
+    }
+
+    // The account keyring: the account key wrapped by the user's recovery key, a key-check value,
+    // and the data keyset encrypted under the account key. Never contains a key in the clear.
+    function validKeyring() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['v', 'wrappedMk', 'kcv', 'encDataKeyset', 'createdAt', 'updatedAt'])
+        && d.keys().hasAll(['v', 'wrappedMk', 'kcv', 'encDataKeyset', 'updatedAt'])
+        && d.v is int
+        && d.wrappedMk is bytes && d.wrappedMk.size() > 0 && d.wrappedMk.size() <= 256
+        && d.kcv is bytes && d.kcv.size() == 16
+        && d.encDataKeyset is bytes && d.encDataKeyset.size() > 0 && d.encDataKeyset.size() <= 8192
+        && d.updatedAt == request.time;
+    }
+
+    match /users/{uid}/meta/keyring {
+      allow read: if signedInAs(uid);
+      allow create: if signedInAs(uid) && validKeyring() && request.resource.data.v == 1;
+      allow update: if signedInAs(uid) && validKeyring() && request.resource.data.v == resource.data.v + 1;
+      allow delete: if signedInAs(uid);
+    }
+
+    // Deny by default.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

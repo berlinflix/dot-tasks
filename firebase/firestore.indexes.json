@@ -1,0 +1,9 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    { "collectionGroup": "records", "fieldPath": "ct", "indexes": [] },
+    { "collectionGroup": "meta", "fieldPath": "wrappedMk", "indexes": [] },
+    { "collectionGroup": "meta", "fieldPath": "kcv", "indexes": [] },
+    { "collectionGroup": "meta", "fieldPath": "encDataKeyset", "indexes": [] }
+  ]
+}

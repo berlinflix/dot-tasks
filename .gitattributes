@@ -1,0 +1,5 @@
+# Store text with LF in the repo; keep the Unix wrapper script LF and Windows scripts CRLF on checkout.
+* text=auto
+/gradlew text eol=lf
+*.bat text eol=crlf
+*.jar binary

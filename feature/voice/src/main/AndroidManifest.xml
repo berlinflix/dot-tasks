@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Microphone for on-device speech-to-text. Audio is never recorded to storage or uploaded. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Package visibility: lets SpeechRecognizer find the system's recognition service. -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+
+    <application>
+        <!-- Opened by the home-screen widget and the in-app mic (explicit PendingIntents only). -->
+        <activity
+            android:name=".VoiceCaptureActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:taskAffinity="dev.suyash.dot.voice"
+            android:theme="@style/Theme.Dot.Voice"
+            android:windowSoftInputMode="adjustResize" />
+    </application>
+</manifest>

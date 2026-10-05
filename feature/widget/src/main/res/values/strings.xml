@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mic_widget_name">Voice task</string>
+    <string name="mic_widget_description">One tap, say it — “remind me to buy milk tomorrow at 8”.</string>
+    <string name="mic_pill_widget_name">Voice task · pill</string>
+    <string name="mic_pill_widget_description">A slim one-row voice button. Use it instead of the round one, or both.</string>
+    <string name="tasks_widget_name">Tasks</string>
+    <string name="tasks_widget_description">What\'s next, with one-tap complete and a voice button.</string>
+</resources>

@@ -1,0 +1,76 @@
+# Golden cases for ReminderUtteranceParser.
+# Columns (tab-separated): now | input | expected title | expected local date-time ("-" = none) | ring requested (y/n)
+# "now" of "-" means the default: Friday 2026-10-02T10:00 in Asia/Kolkata. Day parts: morning 09:00,
+# afternoon 13:00, evening 18:00, night 20:00; weekend starts Saturday; week starts Monday.
+-	set a reminder for buy milk tomorrow 8 am	Buy milk	2026-10-03T08:00	y
+-	remind me to call mom at 7:30 in the evening	Call mom	2026-10-02T19:30	y
+-	call the plumber next monday at 10	Call the plumber	2026-10-05T10:00	n
+-	in 20 minutes take the pizza out	Take the pizza out	2026-10-02T10:20	n
+-	pay rent on 5th october	Pay rent	2026-10-05T09:00	n
+-	buy milk	Buy milk	-	n
+-	wake me up at 6	Wake up	2026-10-03T06:00	y
+-	set an alarm for 6 am	Alarm	2026-10-03T06:00	y
+-	meeting at 3pm tomorrow with john	Meeting with john	2026-10-03T15:00	n
+-	Dentist appointment on Oct 10 at 4:30 pm	Dentist appointment	2026-10-10T16:30	n
+-	tomorrow morning go for a run	Go for a run	2026-10-03T09:00	n
+-	tonight at 9 watch the match	Watch the match	2026-10-02T21:00	n
+-	remind me in an hour to check the oven	Check the oven	2026-10-02T11:00	y
+-	call dad at 5 pm	Call dad	2026-10-02T17:00	n
+-	submit report by friday	Submit report	2026-10-02T18:00	n
+-	pay electricity bill on the 15th	Pay electricity bill	2026-10-15T09:00	n
+-	remind me to stretch at half past 3	Stretch	2026-10-02T15:30	y
+-	quarter to 9 call the bank	Call the bank	2026-10-02T20:45	n
+-	doctor 25/12 at 11	Doctor	2026-12-25T11:00	n
+-	take medicine at 21:00	Take medicine	2026-10-02T21:00	n
+-	standup at 09:30 tomorrow	Standup	2026-10-03T09:30	n
+-	buy groceries this weekend	Buy groceries	2026-10-03T09:00	n
+-	clean the garage next weekend	Clean the garage	2026-10-10T09:00	n
+-	plan the trip next week	Plan the trip	2026-10-05T09:00	n
+-	renew passport next month	Renew passport	2026-11-02T09:00	n
+-	call grandma day after tomorrow	Call grandma	2026-10-04T09:00	n
+-	pick up kids at noon	Pick up kids	2026-10-02T12:00	n
+-	backup laptop at midnight	Backup laptop	2026-10-03T00:00	n
+-	remind me to drink water in 45 minutes	Drink water	2026-10-02T10:45	y
+-	remind me about the dentist on friday	The dentist	2026-10-02T18:00	y
+-	water plants every morning	Water plants every morning	-	n
+-	read chapter 8 at 9	Read chapter 8	2026-10-02T21:00	n
+-	buy 2 eggs tomorrow	Buy 2 eggs	2026-10-03T09:00	n
+-	please remind me to call John tomorrow at 10 thank you	Call John	2026-10-03T10:00	y
+-	Remind me to call Priya at eight	Call Priya	2026-10-02T20:00	y
+-	set a reminder to pay the credit card bill on 3/10 at 9 pm	Pay the credit card bill	2026-10-03T21:00	y
+-	sat exam prep	Sat exam prep	-	n
+-	gym at 6 tomorrow	Gym	2026-10-03T18:00	n
+-	wake me up tomorrow at 6	Wake up	2026-10-03T06:00	y
+-	in 2 hours check email	Check email	2026-10-02T12:00	n
+-	after 10 minutes turn off the stove	Turn off the stove	2026-10-02T10:10	n
+-	call the bank at 4 this afternoon	Call the bank	2026-10-02T16:00	n
+-	remind me tomorrow		2026-10-03T09:00	y
+-	order cake by 5pm on saturday	Order cake	2026-10-03T17:00	n
+-	meet Rahul at 7 tonight	Meet Rahul	2026-10-02T19:00	n
+-	check the oven in half an hour	Check the oven	2026-10-02T10:30	n
+-	Call mom on Sunday	Call mom	2026-10-04T09:00	n
+-	next friday dinner with friends at 8 pm	Dinner with friends	2026-10-09T20:00	n
+-	this friday deadline	Deadline	2026-10-02T18:00	n
+-	in the morning take vitamins	Take vitamins	2026-10-03T09:00	n
+-	remind me at 5 to call mom	Call mom	2026-10-02T17:00	y
+-	set a reminder for tomorrow 8 am to buy milk	Buy milk	2026-10-03T08:00	y
+-	tomorrow 8 buy flowers	Buy flowers	2026-10-03T08:00	n
+-	call the doctor monday 11	Call the doctor	2026-10-05T11:00	n
+-	pay fees at 10 tomorrow morning	Pay fees	2026-10-03T10:00	n
+-	feed the cat at 8 in the evening	Feed the cat	2026-10-02T20:00	n
+-	send invoice by 6:30 pm	Send invoice	2026-10-02T18:30	n
+-	dinner reservation at 8 o'clock tonight	Dinner reservation	2026-10-02T20:00	n
+-	remind me to take out the trash at 8.30 pm	Take out the trash	2026-10-02T20:30	y
+-	call the landlord at 9 a.m. on monday	Call the landlord	2026-10-05T09:00	n
+-	in twenty five minutes leave for the airport	Leave for the airport	2026-10-02T10:25	n
+-	file taxes on 31 july	File taxes	2027-07-31T09:00	n
+-	team lunch at 1	Team lunch	2026-10-02T13:00	n
+-	call back at 10 tomorrow	Call back	2026-10-03T10:00	n
+-	don't forget to lock the door at 11 pm	Lock the door	2026-10-02T23:00	y
+-	i need to finish the slides by tomorrow evening	Finish the slides	2026-10-03T18:00	n
+2026-10-02T22:30	at 8 call the office	Call the office	2026-10-03T08:00	n
+2026-10-02T22:30	call mom today	Call mom	2026-10-02T23:30	n
+2026-10-03T01:00	remind me this morning to call bank	Call bank	2026-10-03T09:00	y
+2026-10-02T21:30	today at 8 pay the bill	Pay the bill	2026-10-03T08:00	n
+2026-10-05T10:00	submit timesheet this monday at 9	Submit timesheet	2026-10-05T21:00	n
+2026-10-03T11:00	clean the house this weekend	Clean the house	2026-10-03T18:00	n

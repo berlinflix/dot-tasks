@@ -1,0 +1,28 @@
+# Gradle / build
+.gradle/
+.kotlin/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Local config and secrets — never commit
+local.properties
+*.jks
+*.keystore
+keystore.properties
+# Firebase client config (not secret, but kept out of the repo; regenerate with
+#   firebase apps:sdkconfig ANDROID <appId> --project <projectId> -o app/google-services.json)
+google-services.json
+
+# Firebase tooling
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+firebase/rules-test/node_modules/
