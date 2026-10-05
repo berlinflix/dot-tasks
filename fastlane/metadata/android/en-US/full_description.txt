@@ -1,0 +1,31 @@
+Dot is a calm, private to-do list with reminders that actually get your attention.
+
+<b>Rings like a call, or stays quiet</b>
+• Important reminders ring like an incoming call, with a full-screen ring screen over the lock screen.
+• On Silent or Do Not Disturb, Dot never rings. You get a quiet notification instead.
+• Snooze in one tap: 10 minutes, an hour, later today, tomorrow, next weekend, or any time you pick.
+• Unanswered reminders become "missed", or snooze themselves if you prefer.
+
+<b>Just say it</b>
+• Tap the mic widget on your home screen (round or pill-shaped) and say "remind me to call mom tomorrow at 8 am".
+• Speech is turned into text on your phone. No audio is ever recorded or uploaded.
+• Typing understands the same phrases: "pay rent on the 1st of every month", "gym every Monday 7am".
+
+<b>Everything a task app needs</b>
+• Lists, subtasks, notes, dates and times
+• Repeating tasks: daily, weekdays, weekly on chosen days, monthly (even "the last Friday"), yearly or custom. Completing one schedules the next.
+• Today, Upcoming and Starred views across all your lists
+• Sort by your own order (drag to reorder), by date, or by recently starred
+• Search, move between lists, duplicate, share and delete all completed tasks, with undo
+• Share text from any app to turn it into a task
+• Widgets for upcoming tasks and one-tap voice capture, app shortcuts and a Quick Settings tile
+
+<b>Private by design</b>
+• Works without an account. Sign in with Google only if you want backup and sync.
+• Synced tasks are end-to-end encrypted on your phone before they are uploaded. The server stores only ciphertext that nobody else can read, not even us.
+• Your key stays with you: on your phone, in Android's end-to-end encrypted backup, and as a recovery key only you see.
+• Encrypted database on the phone, optional app lock with fingerprint or screen lock, and task titles hidden on the lock screen if you like.
+• No ads, no analytics, no trackers.
+• Delete your account and all cloud data at any time, in the app or on the web. Export your tasks whenever you want.
+
+Dot is open source under the Apache License 2.0.

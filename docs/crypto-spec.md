@@ -40,6 +40,8 @@ v          int     optimistic-concurrency version (create = 1, every update = +1
 ct         bytes   Tink AEAD (XChaCha20-Poly1305) of the padded frame below
 updatedAt  server timestamp (the pull cursor; clients cannot set it)
 del        bool    deletion hint for garbage collection only — the authoritative flag is inside ct
+exp        timestamp, deletion markers only (required when del == true, forbidden otherwise):
+           when the marker may be erased. Rules require 7–400 days after the write; clients use 30.
 ```
 
 Associated data for `ct`: `LP("dot.rec.v1") ‖ LP(uid) ‖ LP(rid) ‖ LP(int64 v)`.
@@ -52,7 +54,13 @@ Plaintext frame: `format(1 byte = 1) ‖ length(4, BE) ‖ payload ‖ zero padd
 
 `payload` is protobuf (`RecordPayload` in `core/sync`): kind (1 task / 2 list), the task or list
 fields, the deleted flag, and per-field-group hybrid logical clocks used for conflict-free merging.
-Unknown kinds/fields are ignored so newer app versions can extend the format.
+Unknown kinds/fields are ignored so newer app versions can extend the format. Task field 19 (added
+in 1.0) is the repeat rule as an RFC 5545 `RRULE` subset (`FREQ`, `INTERVAL`, `BYDAY` incl. `2TU`/`-1FR`,
+`BYMONTHDAY`, `UNTIL`, `COUNT` = occurrences left); rules the app can't honour exactly are ignored.
+
+A deleted task or list is written as a **content-free marker**: title, notes, dates, reminder,
+star and repeat are erased in the same write that sets the deleted flag, so the ciphertext of a
+deleted record holds nothing but its id, placement and clocks.
 
 ## Restore paths
 
@@ -67,13 +75,33 @@ ciphertext and creates a fresh account.
 ## Merge
 
 Each record carries one HLC per field group (title, notes, status, starred, due, reminder, placement,
-deleted). Merging takes the newer value per group (LWW-map CRDT): commutative, associative and
+deleted, repeat). Merging takes the newer value per group (LWW-map CRDT): commutative, associative and
 idempotent, so all devices converge regardless of order. Property-tested in `LwwMergeTest`.
+
+Completing a repeating task creates the next occurrence with a **deterministic id**
+(`UUIDv3("next:" + id)`), so two devices completing the same occurrence offline create one task,
+not two.
+
+## Retention
+
+- Deletion markers expire 30 days after they are written (`exp`). A device erases expired markers
+  in the cloud during its weekly full sync (each re-checked in a transaction, so a restored record is
+  never touched); a Firestore TTL policy on `records.exp` does the same server-side when the project
+  is on the Blaze plan. Devices forget local markers after 30 days too.
+- Every 7 days (≤ the shortest marker lifetime the rules allow) each device downloads the full
+  record set and drops records it had synced that no longer exist in the cloud — so a device that
+  was offline longer than a marker's lifetime still learns about deletions. A push that finds its
+  record gone from the cloud drops it locally instead of re-creating it.
+- Deleting the account deletes all records and the keyring immediately (in the app, or on the web
+  page), plus the Block Store copy (in the app).
 
 ## Tests
 
 - `core/crypto`: `RecordCipherTest` (tamper, slot/version/user swap, padding, wrong key),
   `AccountCryptoTest` (recovery key wrap/unwrap, uid binding, kcv, rotation, keyset round trip).
 - `core/sync`: `RecordCodecTest` (payload round trips, opaque ids).
+- `core/domain`: `RepeatRuleTest` (RRULE parsing/round trips, next occurrences), `LwwMergeTest`.
+- `core/data` (on device): `TaskCommandsTest` (content-free deletion, repeat successors and undo,
+  marker purge, dropping records gone from the cloud).
 - `firebase/rules-test`: server-side enforcement (owner-only, Google-only, version +1, field whitelist,
-  size limits, server timestamps).
+  size limits, server timestamps, marker expiry window).

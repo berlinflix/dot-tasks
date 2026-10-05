@@ -1,0 +1,20 @@
+name: Feature request
+description: Suggest an idea for Dot
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do?
+      description: Describe the problem or situation, not just the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Privacy
+      description: Dot keeps tasks end-to-end encrypted and adds no trackers. Does your idea need any data to leave the phone?

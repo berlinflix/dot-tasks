@@ -1,0 +1,46 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please don't include task text or anything private.
+        Security problems go to the private channel in SECURITY.md, not here.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+  - type: input
+    id: version
+    attributes:
+      label: Dot version
+      description: Settings → About
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Phone and Android version
+      placeholder: "Pixel 8, Android 16"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: Installed from
+      options:
+        - Google Play
+        - GitHub release APK
+        - Built from source

@@ -1,0 +1,1 @@
+First release: lists, subtasks and repeating tasks; reminders that ring like a call (quiet in Silent and Do Not Disturb); add tasks by voice with on-device speech; home-screen widgets; Today and Upcoming views; search; optional end-to-end encrypted sync with Google sign-in; app lock and export.

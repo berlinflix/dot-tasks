@@ -1,0 +1,15 @@
+Dot — private tasks with reminders that ring like a call
+Copyright 2026 Suyash Singh
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product bundles the following third-party works:
+
+- Space Grotesk, Copyright 2020 The Space Grotesk Project Authors.
+  Licensed under the SIL Open Font License 1.1 (third_party/fonts/SpaceGrotesk-OFL.txt).
+- Space Mono, Copyright 2016 Google Inc.
+  Licensed under the SIL Open Font License 1.1 (third_party/fonts/SpaceMono-OFL.txt).
+
+It is built with open-source libraries from AndroidX, Jetpack Compose, Kotlin, Dagger/Hilt,
+Google Tink, SQLCipher for Android (Zetetic) and the Firebase Android SDK, each under its own
+license (mostly Apache 2.0; SQLCipher under a BSD-style license).
