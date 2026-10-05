@@ -12,8 +12,15 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import dev.suyash.dot.core.data.settings.SettingsRepository
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.suyash.dot.core.designsystem.theme.DotTheme
 import dev.suyash.dot.ui.DotApp
+import dev.suyash.dot.ui.LockScreen
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -25,6 +32,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var settingsRepository: SettingsRepository
+
+    @Inject
+    lateinit var appLock: AppLock
 
     /** A task to open, delivered by a notification tap. */
     private val openTaskId = MutableStateFlow<String?>(null)
@@ -38,16 +48,31 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             lifecycleScope.launch {
                 repeatOnLifecycle(Lifecycle.State.CREATED) {
-                    settingsRepository.settings.map { it.hideInRecents }.distinctUntilChanged().collect { hide ->
+                    settingsRepository.settings.map { it.hideInRecents || it.appLock }.distinctUntilChanged().collect { hide ->
                         setRecentsScreenshotEnabled(!hide)
                     }
                 }
             }
         }
 
+        val appLockEnabled = settingsRepository.settings.map { it.appLock }.distinctUntilChanged()
         setContent {
             DotTheme {
-                DotApp(openTaskId = openTaskId, onOpenTaskHandled = { openTaskId.value = null })
+                val lockEnabled by appLockEnabled.collectAsStateWithLifecycle(initialValue = null)
+                val locked by appLock.locked.collectAsStateWithLifecycle()
+                var lockMessage by remember { mutableStateOf<String?>(null) }
+                when (lockEnabled) {
+                    null -> Unit // settings not loaded yet: show nothing rather than flash the tasks
+                    true -> if (locked) {
+                        LockScreen(message = lockMessage, onUnlock = { appLock.unlock(this) { lockMessage = it.toString() } })
+                    } else {
+                        DotApp(openTaskId = openTaskId, onOpenTaskHandled = { openTaskId.value = null })
+                    }
+                    false -> {
+                        LaunchedEffect(Unit) { appLock.notNeeded() }
+                        DotApp(openTaskId = openTaskId, onOpenTaskHandled = { openTaskId.value = null })
+                    }
+                }
             }
         }
     }

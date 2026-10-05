@@ -11,11 +11,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -26,15 +23,20 @@ import dev.suyash.dot.core.designsystem.theme.DotTheme
 import dev.suyash.dot.core.sync.AccountState
 import dev.suyash.dot.feature.account.AccountViewModel
 import dev.suyash.dot.feature.reminders.ReminderPermissions
+import dev.suyash.dot.feature.settings.SettingsViewModel
 import dev.suyash.dot.feature.widget.WidgetPinning
 import kotlinx.coroutines.launch
 
-/** A gentle, dismissible nudge on the home screen while not signed in. */
+/** A gentle nudge on the home screen while not signed in; "Not now" hides it for good. */
 @Composable
-fun SyncHintBanner(onOpenSettings: () -> Unit, viewModel: AccountViewModel = hiltViewModel()) {
+fun SyncHintBanner(
+    onOpenSettings: () -> Unit,
+    viewModel: AccountViewModel = hiltViewModel(),
+    settingsViewModel: SettingsViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var dismissed by rememberSaveable { mutableStateOf(false) }
-    if (state != AccountState.SignedOut || dismissed) return
+    val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
+    if (state != AccountState.SignedOut || settings.syncHintDismissed) return
     DotCard(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Column {
             Text("Back up your tasks", style = MaterialTheme.typography.titleSmall)
@@ -45,7 +47,7 @@ fun SyncHintBanner(onOpenSettings: () -> Unit, viewModel: AccountViewModel = hil
             )
             Row {
                 TextButton(onClick = onOpenSettings) { Text("Set up", color = DotTheme.colors.accent) }
-                TextButton(onClick = { dismissed = true }) { Text("Not now") }
+                TextButton(onClick = { settingsViewModel.update { it.copy(syncHintDismissed = true) } }) { Text("Not now") }
             }
         }
     }

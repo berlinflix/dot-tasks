@@ -70,6 +70,12 @@ class LwwMergeTest {
                 TaskField.REMINDER -> start.task
                 TaskField.PLACEMENT -> start.task.copy(position = "V$i".replace('0', '1'))
                 TaskField.DELETED -> start.task
+                TaskField.REPEAT -> start.task.copy(
+                    repeat = dev.suyash.dot.core.domain.repeat.RepeatRule(
+                        dev.suyash.dot.core.domain.repeat.Frequency.DAILY,
+                        interval = 1 + i % 5,
+                    ),
+                )
             }
             start.copy(
                 task = task,

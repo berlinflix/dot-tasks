@@ -39,6 +39,7 @@ private val DarkScheme = darkColorScheme(
     outlineVariant = DotPalette.Grey800,
     inverseSurface = DotPalette.White,
     inverseOnSurface = DotPalette.Black,
+    inversePrimary = DotPalette.Red, // snackbar actions on the white snackbar
     scrim = DotPalette.Black,
 )
 
@@ -70,6 +71,7 @@ private val LightScheme = lightColorScheme(
     outlineVariant = DotPalette.Grey200,
     inverseSurface = DotPalette.Black,
     inverseOnSurface = DotPalette.White,
+    inversePrimary = DotPalette.RedDark, // snackbar actions on the black snackbar
     scrim = DotPalette.Black,
 )
 

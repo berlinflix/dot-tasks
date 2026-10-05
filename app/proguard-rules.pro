@@ -13,6 +13,12 @@
 -keep class net.zetetic.database.** { *; }
 -keep class net.zetetic.database.sqlcipher.** { *; }
 
+# --- Credential Manager loads its Play services provider by reflection (per the androidx.credentials docs).
+-if class androidx.credentials.CredentialManager
+-keep class androidx.credentials.playservices.** {
+  *;
+}
+
 # --- kotlinx.serialization (navigation routes, sync payloads)
 -keepattributes *Annotation*, InnerClasses
 -keepclassmembers @kotlinx.serialization.Serializable class ** {

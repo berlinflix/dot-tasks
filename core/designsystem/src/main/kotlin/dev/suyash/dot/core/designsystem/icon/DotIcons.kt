@@ -150,17 +150,15 @@ object DotIcons {
         }
     }
 
+    /** Sliders (a sun-like gear would look too much like "Today"). */
     val Settings: ImageVector by lazy {
         icon("Settings") {
-            circle(12f, 12f, 3f)
-            moveTo(12f, 3.5f); verticalLineTo(6f)
-            moveTo(12f, 18f); verticalLineTo(20.5f)
-            moveTo(3.5f, 12f); horizontalLineTo(6f)
-            moveTo(18f, 12f); horizontalLineTo(20.5f)
-            moveTo(6f, 6f); lineTo(7.8f, 7.8f)
-            moveTo(16.2f, 16.2f); lineTo(18f, 18f)
-            moveTo(6f, 18f); lineTo(7.8f, 16.2f)
-            moveTo(16.2f, 7.8f); lineTo(18f, 6f)
+            moveTo(4f, 7f); horizontalLineTo(11f)
+            moveTo(17f, 7f); horizontalLineTo(20f)
+            circle(14f, 7f, 2.5f)
+            moveTo(4f, 17f); horizontalLineTo(7f)
+            moveTo(13f, 17f); horizontalLineTo(20f)
+            circle(10f, 17f, 2.5f)
         }
     }
 
@@ -186,6 +184,109 @@ object DotIcons {
     val ChevronDown: ImageVector by lazy {
         icon("ChevronDown") {
             moveTo(6f, 9.5f); lineTo(12f, 15.5f); lineTo(18f, 9.5f)
+        }
+    }
+
+    val Repeat: ImageVector by lazy {
+        icon("Repeat") {
+            moveTo(17f, 2.5f); lineTo(20f, 5.5f); lineTo(17f, 8.5f)
+            moveTo(4f, 11f); verticalLineTo(9.5f)
+            curveTo(4f, 7.29f, 5.79f, 5.5f, 8f, 5.5f); horizontalLineTo(20f)
+            moveTo(7f, 21.5f); lineTo(4f, 18.5f); lineTo(7f, 15.5f)
+            moveTo(20f, 13f); verticalLineTo(14.5f)
+            curveTo(20f, 16.71f, 18.21f, 18.5f, 16f, 18.5f); horizontalLineTo(4f)
+        }
+    }
+
+    val Search: ImageVector by lazy {
+        icon("Search") {
+            circle(11f, 11f, 6.5f)
+            moveTo(16f, 16f); lineTo(20.5f, 20.5f)
+        }
+    }
+
+    /** "Today". */
+    val Sun: ImageVector by lazy {
+        icon("Sun") {
+            circle(12f, 12f, 3.8f)
+            moveTo(12f, 2.5f); verticalLineTo(4.5f)
+            moveTo(12f, 19.5f); verticalLineTo(21.5f)
+            moveTo(2.5f, 12f); horizontalLineTo(4.5f)
+            moveTo(19.5f, 12f); horizontalLineTo(21.5f)
+            moveTo(5.28f, 5.28f); lineTo(6.7f, 6.7f)
+            moveTo(17.3f, 17.3f); lineTo(18.72f, 18.72f)
+            moveTo(5.28f, 18.72f); lineTo(6.7f, 17.3f)
+            moveTo(17.3f, 6.7f); lineTo(18.72f, 5.28f)
+        }
+    }
+
+    val Subtask: ImageVector by lazy {
+        icon("Subtask") {
+            moveTo(6f, 4f); verticalLineTo(12f)
+            curveTo(6f, 13.1f, 6.9f, 14f, 8f, 14f); horizontalLineTo(18.5f)
+            moveTo(15f, 10.5f); lineTo(18.5f, 14f); lineTo(15f, 17.5f)
+        }
+    }
+
+    val Copy: ImageVector by lazy {
+        icon("Copy") {
+            moveTo(9f, 9f); horizontalLineTo(20f); verticalLineTo(20f); horizontalLineTo(9f); close()
+            moveTo(15f, 5f); verticalLineTo(4f); horizontalLineTo(4f); verticalLineTo(15f); horizontalLineTo(5f)
+        }
+    }
+
+    val Share: ImageVector by lazy {
+        icon("Share") {
+            moveTo(12f, 3f); verticalLineTo(15f)
+            moveTo(8f, 7f); lineTo(12f, 3f); lineTo(16f, 7f)
+            moveTo(5f, 12f); verticalLineTo(19f)
+            curveTo(5f, 20.1f, 5.9f, 21f, 7f, 21f); horizontalLineTo(17f)
+            curveTo(18.1f, 21f, 19f, 20.1f, 19f, 19f); verticalLineTo(12f)
+        }
+    }
+
+    val Lock: ImageVector by lazy {
+        icon("Lock") {
+            moveTo(6f, 11f); horizontalLineTo(18f); verticalLineTo(21f); horizontalLineTo(6f); close()
+            moveTo(8f, 11f); verticalLineTo(8f)
+            arcTo(4f, 4f, 0f, isMoreThanHalf = false, isPositiveArc = true, x1 = 16f, y1 = 8f)
+            verticalLineTo(11f)
+            moveTo(12f, 15f); verticalLineTo(17f)
+        }
+    }
+
+    val Export: ImageVector by lazy {
+        icon("Export") {
+            moveTo(12f, 3f); verticalLineTo(15f)
+            moveTo(8f, 11f); lineTo(12f, 15f); lineTo(16f, 11f)
+            moveTo(5f, 20f); horizontalLineTo(19f)
+        }
+    }
+
+    val DragHandle: ImageVector by lazy {
+        icon("DragHandle") {
+            moveTo(9f, 6f); lineTo(9.01f, 6f); moveTo(15f, 6f); lineTo(15.01f, 6f)
+            moveTo(9f, 12f); lineTo(9.01f, 12f); moveTo(15f, 12f); lineTo(15.01f, 12f)
+            moveTo(9f, 18f); lineTo(9.01f, 18f); moveTo(15f, 18f); lineTo(15.01f, 18f)
+        }
+    }
+
+    val ListIcon: ImageVector by lazy {
+        icon("List") {
+            moveTo(9f, 6f); horizontalLineTo(20f)
+            moveTo(9f, 12f); horizontalLineTo(20f)
+            moveTo(9f, 18f); horizontalLineTo(20f)
+            moveTo(4.5f, 6f); lineTo(4.51f, 6f)
+            moveTo(4.5f, 12f); lineTo(4.51f, 12f)
+            moveTo(4.5f, 18f); lineTo(4.51f, 18f)
+        }
+    }
+
+    val Sort: ImageVector by lazy {
+        icon("Sort") {
+            moveTo(4f, 7f); horizontalLineTo(20f)
+            moveTo(7f, 12f); horizontalLineTo(17f)
+            moveTo(10f, 17f); horizontalLineTo(14f)
         }
     }
 

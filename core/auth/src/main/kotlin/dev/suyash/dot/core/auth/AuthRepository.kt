@@ -15,7 +15,7 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -69,6 +69,72 @@ class AuthRepository @Inject constructor(
      * Tries previously-used accounts silently first, then the full "Sign in with Google" flow.
      */
     suspend fun signIn(activity: Activity): SignInResult {
+        val idToken = when (val token = requestGoogleIdToken(activity)) {
+            is IdToken.Received -> token.value
+            IdToken.Cancelled -> return SignInResult.Cancelled
+            IdToken.NoAccount -> return SignInResult.NoGoogleAccount
+            is IdToken.Failed -> return SignInResult.Failed(token.message)
+        }
+        return try {
+            val result = auth.signInWithCredential(GoogleAuthProvider.getCredential(idToken, null)).await()
+            val user = result.user ?: return SignInResult.Failed("Sign-in returned no user.")
+            SignInResult.Success(user.toAccountUser())
+        } catch (e: Exception) {
+            Log.w(TAG, "Firebase sign-in failed: ${e.javaClass.simpleName}")
+            SignInResult.Failed("Sign-in failed. Check your connection and try again.")
+        }
+    }
+
+    /**
+     * Confirms it's still the account owner (Google account sheet) right before something
+     * irreversible. Fails if the user cancels or picks a different account.
+     */
+    suspend fun reauthenticate(activity: Activity): Boolean {
+        val user = auth.currentUser ?: return false
+        val idToken = (requestGoogleIdToken(activity) as? IdToken.Received)?.value ?: return false
+        return try {
+            user.reauthenticate(GoogleAuthProvider.getCredential(idToken, null)).await()
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "Re-authentication failed: ${e.javaClass.simpleName}")
+            false
+        }
+    }
+
+    /** Deletes the Firebase account itself (call [reauthenticate] first: Firebase needs a recent sign-in). */
+    suspend fun deleteUser(): Boolean {
+        val user = auth.currentUser ?: return true
+        return try {
+            user.delete().await()
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "Account deletion failed: ${e.javaClass.simpleName}")
+            false
+        }
+    }
+
+    /** False if the account was deleted or disabled elsewhere (e.g. on the web deletion page). */
+    suspend fun accountStillExists(): Boolean {
+        val user = auth.currentUser ?: return false
+        return try {
+            user.reload().await()
+            true
+        } catch (_: FirebaseAuthInvalidUserException) {
+            false
+        } catch (_: Exception) {
+            true // offline or transient: assume it still exists
+        }
+    }
+
+    private sealed interface IdToken {
+        data class Received(val value: String) : IdToken
+        data object Cancelled : IdToken
+        data object NoAccount : IdToken
+        data class Failed(val message: String) : IdToken
+    }
+
+    /** Previously-used accounts silently first, then the full "Sign in with Google" sheet. */
+    private suspend fun requestGoogleIdToken(activity: Activity): IdToken {
         val manager = CredentialManager.create(activity)
         val nonce = newNonce()
         val returning = GetGoogleIdOption.Builder()
@@ -85,55 +151,35 @@ class AuthRepository @Inject constructor(
             try {
                 manager.getCredential(activity, GetCredentialRequest.Builder().addCredentialOption(button).build())
             } catch (_: GetCredentialCancellationException) {
-                return SignInResult.Cancelled
+                return IdToken.Cancelled
             } catch (_: NoCredentialException) {
-                return SignInResult.NoGoogleAccount
+                return IdToken.NoAccount
             } catch (e: GetCredentialException) {
                 Log.w(TAG, "Sign-in failed: ${e.type}")
-                return SignInResult.Failed("Couldn't open Google sign-in.")
+                return IdToken.Failed("Couldn't open Google sign-in.")
             }
         } catch (_: GetCredentialCancellationException) {
-            return SignInResult.Cancelled
+            return IdToken.Cancelled
         } catch (e: GetCredentialException) {
             Log.w(TAG, "Sign-in failed: ${e.type}")
-            return SignInResult.Failed("Couldn't open Google sign-in.")
+            return IdToken.Failed("Couldn't open Google sign-in.")
         }
 
         val credential = response.credential
         if (credential !is CustomCredential || credential.type != GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-            return SignInResult.Failed("Unexpected credential type.")
+            return IdToken.Failed("Unexpected credential type.")
         }
         return try {
-            val idToken = GoogleIdTokenCredential.createFrom(credential.data).idToken
-            val result = auth.signInWithCredential(GoogleAuthProvider.getCredential(idToken, null)).await()
-            val user = result.user ?: return SignInResult.Failed("Sign-in returned no user.")
-            SignInResult.Success(user.toAccountUser())
+            IdToken.Received(GoogleIdTokenCredential.createFrom(credential.data).idToken)
         } catch (e: Exception) {
-            Log.w(TAG, "Firebase sign-in failed: ${e.javaClass.simpleName}")
-            SignInResult.Failed("Sign-in failed. Check your connection and try again.")
+            Log.w(TAG, "Unreadable Google credential: ${e.javaClass.simpleName}")
+            IdToken.Failed("Sign-in failed. Try again.")
         }
     }
 
     suspend fun signOut() {
         runCatching { CredentialManager.create(context).clearCredentialState(ClearCredentialStateRequest()) }
         auth.signOut()
-    }
-
-    /**
-     * Deletes the Firebase account. Firebase requires a recent sign-in; if it's too old we
-     * re-authenticate through the Google sheet and retry once.
-     */
-    suspend fun deleteAccount(activity: Activity): Boolean {
-        val user = auth.currentUser ?: return true
-        return try {
-            user.delete().await()
-            true
-        } catch (_: FirebaseAuthRecentLoginRequiredException) {
-            when (signIn(activity)) {
-                is SignInResult.Success -> runCatching { auth.currentUser?.delete()?.await() }.isSuccess
-                else -> false
-            }
-        }
     }
 
     private fun newNonce(): String {

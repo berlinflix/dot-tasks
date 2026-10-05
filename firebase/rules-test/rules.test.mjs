@@ -32,6 +32,12 @@ function record(v, extra = {}) {
   return { v, ct: ct(), updatedAt: serverTimestamp(), del: false, ...extra };
 }
 
+const daysFromNow = (days) => Timestamp.fromMillis(Date.now() + days * 24 * 60 * 60 * 1000);
+
+function marker(v, extra = {}) {
+  return record(v, { del: true, exp: daysFromNow(30), ...extra });
+}
+
 function keyring(v, extra = {}) {
   return {
     v,
@@ -92,7 +98,18 @@ describe('records', () => {
     await assertFails(setDoc(recordRef(db(ALICE)), record(1)));
     await assertFails(setDoc(recordRef(db(ALICE)), record(3)));
     await assertSucceeds(setDoc(recordRef(db(ALICE)), record(2)));
-    await assertSucceeds(updateDoc(recordRef(db(ALICE)), { v: 3, ct: ct(), updatedAt: serverTimestamp(), del: true }));
+    await assertSucceeds(updateDoc(recordRef(db(ALICE)), { v: 3, ct: ct(), updatedAt: serverTimestamp(), del: true, exp: daysFromNow(30) }));
+  });
+
+  test('deletion markers must expire in 7 to 400 days; live records never expire', async () => {
+    await assertFails(setDoc(recordRef(db(ALICE)), record(1, { del: true })));
+    await assertFails(setDoc(recordRef(db(ALICE)), marker(1, { exp: daysFromNow(1) })));
+    await assertFails(setDoc(recordRef(db(ALICE)), marker(1, { exp: daysFromNow(500) })));
+    await assertFails(setDoc(recordRef(db(ALICE)), marker(1, { exp: 'soon' })));
+    await assertFails(setDoc(recordRef(db(ALICE)), record(1, { exp: daysFromNow(30) })));
+    await assertSucceeds(setDoc(recordRef(db(ALICE)), marker(1)));
+    // Restoring a deleted task replaces the marker with a live record, which drops the expiry.
+    await assertSucceeds(setDoc(recordRef(db(ALICE)), record(2)));
   });
 
   test('timestamps must come from the server', async () => {

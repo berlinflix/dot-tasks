@@ -67,11 +67,18 @@ internal fun QuickAddBar(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Icon(if (result.ringRequested) DotIcons.Phone else DotIcons.Bell, contentDescription = null, tint = colors.accent, modifier = Modifier.size(14.dp))
+                    Icon(
+                        if (result.repeat != null) DotIcons.Repeat else if (result.ringRequested) DotIcons.Phone else DotIcons.Bell,
+                        contentDescription = null,
+                        tint = colors.accent,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    val repeat = result.repeat?.let { " · " + it.describe(at.toLocalDate()) }.orEmpty()
                     Text(
-                        "${result.title.ifBlank { "…" }} · ${formats.dayAndTime(at, now())}",
+                        "${result.title.ifBlank { "…" }} · ${formats.dayAndTime(at, now())}$repeat",
                         style = MaterialTheme.typography.labelMedium,
                         color = colors.accent,
+                        maxLines = 1,
                     )
                 }
             }
@@ -102,7 +109,7 @@ internal fun QuickAddBar(
                     .padding(horizontal = 20.dp, vertical = 16.dp),
                 decorationBox = { inner ->
                     if (text.isEmpty()) {
-                        Text("Add a task — “call mom 6pm”", style = MaterialTheme.typography.bodyLarge, color = colors.muted)
+                        Text("Add a task — “call mom 6pm”", style = MaterialTheme.typography.bodyLarge, color = colors.muted, maxLines = 1)
                     }
                     inner()
                 },

@@ -9,6 +9,7 @@ import dev.suyash.dot.core.domain.model.Task
 import dev.suyash.dot.core.domain.model.TaskId
 import dev.suyash.dot.core.domain.model.TaskList
 import dev.suyash.dot.core.domain.model.TaskSource
+import dev.suyash.dot.core.domain.repeat.RepeatRule
 import dev.suyash.dot.core.domain.sync.Hlc
 import dev.suyash.dot.core.domain.sync.ListField
 import dev.suyash.dot.core.domain.sync.ListRecord
@@ -59,6 +60,8 @@ internal class TaskPayload(
     @ProtoNumber(16) val source: String = "MANUAL",
     @ProtoNumber(17) val createdAt: Long,
     @ProtoNumber(18) val updatedAt: Long,
+    /** RFC 5545 RRULE subset (see RepeatRule). */
+    @ProtoNumber(19) val repeat: String? = null,
 )
 
 @Serializable
@@ -114,6 +117,7 @@ object RecordCodec {
                     source = t.source.name,
                     createdAt = t.createdAt.toEpochMilli(),
                     updatedAt = t.updatedAt.toEpochMilli(),
+                    repeat = t.repeat?.toRRule(),
                 ),
                 deleted = record.deleted,
                 clocks = record.clocks.entries.associate { (field, hlc) -> field.name to hlc.encode() },
@@ -172,6 +176,7 @@ object RecordCodec {
             source = runCatching { TaskSource.valueOf(source) }.getOrDefault(TaskSource.MANUAL),
             createdAt = Instant.ofEpochMilli(createdAt),
             updatedAt = Instant.ofEpochMilli(updatedAt),
+            repeat = RepeatRule.parse(repeat),
         ),
         deleted = payload.deleted,
         clocks = payload.clocks.mapNotNull { (name, value) ->

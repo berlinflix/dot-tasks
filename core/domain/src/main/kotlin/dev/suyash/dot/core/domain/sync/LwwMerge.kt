@@ -21,6 +21,7 @@ object LwwMerge {
         val reminder = winner(TaskField.REMINDER)
         val placement = winner(TaskField.PLACEMENT)
         val deleted = winner(TaskField.DELETED)
+        val repeat = winner(TaskField.REPEAT)
 
         val merged: Task = a.task.copy(
             title = title.task.title,
@@ -33,6 +34,8 @@ object LwwMerge {
             listId = placement.task.listId,
             parentId = placement.task.parentId,
             position = placement.task.position,
+            repeat = repeat.task.repeat,
+            starredAt = starred.task.starredAt,
             source = minOf(a.task.source, b.task.source),
             createdAt = minOf(a.task.createdAt, b.task.createdAt),
             updatedAt = maxOf(a.task.updatedAt, b.task.updatedAt),

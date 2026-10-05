@@ -1,5 +1,6 @@
 package dev.suyash.dot.core.domain.model
 
+import dev.suyash.dot.core.domain.repeat.RepeatRule
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -48,7 +49,16 @@ data class Task(
     val source: TaskSource = TaskSource.MANUAL,
     val createdAt: Instant,
     val updatedAt: Instant,
-)
+    /** Set on the open occurrence of a repeating task; completing it creates the next one. */
+    val repeat: RepeatRule? = null,
+    /**
+     * When the star was last toggled (for "Starred recently"). Read-only: derived from the sync clock
+     * when loading, never stored or synced on its own.
+     */
+    val starredAt: Instant? = null,
+) {
+    val isSubtask: Boolean get() = parentId != null
+}
 
 data class TaskList(
     val id: ListId,

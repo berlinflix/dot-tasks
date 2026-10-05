@@ -75,7 +75,14 @@ class AccountSession @Inject constructor(
 
     /** Restores the session at app start (no UI, no network needed if keys are on this phone). */
     fun restore() {
-        val user = auth.current() ?: return
+        val user = auth.current()
+        if (user == null) {
+            // Signed out: deletion markers are never uploaded, so they only need to outlive undo.
+            scope.launch {
+                syncStore.purgeTombstones(System.currentTimeMillis() - SyncEngine.MARKER_LIFETIME_MS, includeUnpushed = true)
+            }
+            return
+        }
         scope.launch {
             mutex.withLock {
                 val local = withContext(Dispatchers.IO) { localKeys.load(user.uid) }
@@ -197,9 +204,18 @@ class AccountSession @Inject constructor(
         _state.value = AccountState.SignedOut
     }
 
-    /** Deletes the cloud copy, the Block Store key, local data and the account itself. */
+    /**
+     * Deletes the cloud copy, the Block Store key, local data and the account itself. Confirms it's
+     * the owner first (Google account sheet); if that's cancelled, nothing is deleted.
+     */
     suspend fun deleteAccount(activity: Activity): Boolean = mutex.withLock {
         val user = auth.current() ?: return@withLock false
+        val before = _state.value
+        _state.value = AccountState.Working("Confirm it's you…")
+        if (!auth.reauthenticate(activity)) {
+            _state.value = before
+            return@withLock false
+        }
         _state.value = AccountState.Working("Deleting your account…")
         return@withLock try {
             scheduler.cancelAll()
@@ -208,14 +224,40 @@ class AccountSession @Inject constructor(
             withContext(Dispatchers.IO) { localKeys.delete(user.uid) }
             syncStore.wipe()
             keys = null
-            val deleted = auth.deleteAccount(activity)
+            pendingKeyring = null
+            if (!auth.deleteUser()) {
+                // Data is gone; only the (now empty) sign-in record is left. Retrying finishes it.
+                _state.value = AccountState.Error("Your data was deleted, but removing the account itself failed. Try again.", user)
+                return@withLock false
+            }
             auth.signOut()
             _state.value = AccountState.SignedOut
-            deleted
+            true
         } catch (e: Exception) {
             Log.w(TAG, "Account deletion failed: ${e.javaClass.simpleName}")
             _state.value = AccountState.Error("Deletion didn't finish. Check your connection and try again.", user)
             false
+        }
+    }
+
+    /**
+     * Called when sync keeps failing: if the account was deleted elsewhere (the web deletion page),
+     * sign out here and remove its data and keys from this phone.
+     */
+    suspend fun checkAccountStillExists() {
+        if (auth.current() == null || auth.accountStillExists()) return
+        mutex.withLock {
+            val uid = auth.current()?.uid
+            scheduler.cancelAll()
+            keys = null
+            pendingKeyring = null
+            if (uid != null) {
+                withContext(Dispatchers.IO) { localKeys.delete(uid) }
+                runCatching { blockStore.delete(uid) }
+            }
+            syncStore.wipe()
+            auth.signOut()
+            _state.value = AccountState.SignedOut
         }
     }
 

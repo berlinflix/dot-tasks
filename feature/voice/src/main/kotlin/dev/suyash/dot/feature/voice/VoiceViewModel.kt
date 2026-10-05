@@ -42,12 +42,14 @@ sealed interface VoiceState {
         val at: ZonedDateTime?,
         val mode: RingMode,
         val heard: String,
+        /** e.g. "Weekly on Mon" when a repeat was said. */
+        val repeat: String? = null,
     ) : VoiceState
 
     data class Failed(val reason: SpeechFailure) : VoiceState
 
     /** On-device recognition unavailable (or the user chose to type). */
-    data class Typing(val unavailable: Boolean) : VoiceState
+    data class Typing(val unavailable: Boolean, val initial: String = "") : VoiceState
 
     data object NeedsPermission : VoiceState
 }
@@ -123,6 +125,12 @@ class VoiceViewModel @Inject constructor(
         _state.value = VoiceState.Typing(unavailable = false)
     }
 
+    /** Opened to type (shortcut) or with text shared from another app: nothing is saved until confirmed. */
+    fun startTyping(initial: String) {
+        listenJob?.cancel()
+        _state.value = VoiceState.Typing(unavailable = false, initial = initial)
+    }
+
     fun submitTyped(text: String) {
         if (text.isNotBlank()) save(text)
     }
@@ -153,9 +161,17 @@ class VoiceViewModel @Inject constructor(
                     dueDate = at?.toLocalDate(),
                     reminder = at?.let { Reminder(at = it.toInstant(), zone = it.zone, mode = mode) },
                     source = TaskSource.VOICE,
+                    repeat = parsed.repeat,
                 ),
             )
-            _state.value = VoiceState.Saved(taskId = id, title = title, at = at, mode = mode, heard = heard)
+            _state.value = VoiceState.Saved(
+                taskId = id,
+                title = title,
+                at = at,
+                mode = mode,
+                heard = heard,
+                repeat = parsed.repeat?.describe(at?.toLocalDate()),
+            )
         }
     }
 

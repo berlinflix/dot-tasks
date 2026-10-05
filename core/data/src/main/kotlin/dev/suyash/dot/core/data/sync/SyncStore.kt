@@ -10,6 +10,8 @@ import dev.suyash.dot.core.data.db.toEntity
 import dev.suyash.dot.core.data.db.toRecord
 import dev.suyash.dot.core.domain.events.ChangeOrigin
 import dev.suyash.dot.core.domain.events.TaskChange
+import dev.suyash.dot.core.domain.model.ListId
+import dev.suyash.dot.core.domain.model.TaskId
 import dev.suyash.dot.core.domain.sync.HlcClock
 import dev.suyash.dot.core.domain.sync.ListRecord
 import dev.suyash.dot.core.domain.sync.LwwMerge
@@ -56,7 +58,7 @@ class SyncStore @Inject constructor(
         database.withTransaction {
             val row = tasks.get(pushed.task.id.value)
             val merged = row?.let { LwwMerge.merge(it.toRecord(), pushed) } ?: pushed
-            tasks.upsert(merged.toEntity(serverVersion = version, recurrence = row?.recurrence))
+            tasks.upsert(merged.toEntity(serverVersion = version))
             outbox.remove(entry.recordId, entry.enqueuedAt) // keeps the row if the user edited again meanwhile
         }
     }
@@ -94,7 +96,7 @@ class SyncStore @Inject constructor(
                 val local = row?.toRecord()
                 val merged = local?.let { LwwMerge.merge(it, remote) } ?: remote
                 if (merged != local || row?.serverVersion != version) {
-                    tasks.upsert(merged.toEntity(serverVersion = version, recurrence = row?.recurrence))
+                    tasks.upsert(merged.toEntity(serverVersion = version))
                     if (merged != local) changedTasks += remote.task.id
                 }
             }
@@ -104,6 +106,64 @@ class SyncStore @Inject constructor(
         }
         return changedTasks.size + changedLists.size
     }
+
+    /**
+     * A record this device had synced is gone from the cloud: it was deleted elsewhere and its marker
+     * has since expired (or the cloud copy was wiped). Drops it here too, with any unsent edit.
+     */
+    suspend fun dropGone(type: RecordType, id: String) {
+        database.withTransaction {
+            when (type) {
+                RecordType.TASK -> tasks.hardDelete(listOf(id))
+                RecordType.LIST -> lists.hardDelete(listOf(id))
+            }
+            outbox.removeAll(listOf(id))
+        }
+        notifier.notify(
+            when (type) {
+                RecordType.TASK -> TaskChange(ChangeOrigin.REMOTE, taskIds = setOf(TaskId(id)))
+                RecordType.LIST -> TaskChange(ChangeOrigin.REMOTE, listIds = setOf(ListId(id)), remindersChanged = false)
+            },
+        )
+    }
+
+    /**
+     * After downloading the whole cloud copy: drops every record this device had synced that isn't in
+     * it any more ([isInCloud] says which are). Returns how many were dropped.
+     */
+    suspend fun dropAllGone(isInCloud: (RecordType, String) -> Boolean): Int {
+        val goneTasks = mutableSetOf<TaskId>()
+        val goneLists = mutableSetOf<ListId>()
+        database.withTransaction {
+            tasks.allIncludingDeleted().filter { it.serverVersion > 0 && !isInCloud(RecordType.TASK, it.id) }
+                .forEach { goneTasks += TaskId(it.id) }
+            lists.allIncludingDeleted().filter { it.serverVersion > 0 && !isInCloud(RecordType.LIST, it.id) }
+                .forEach { goneLists += ListId(it.id) }
+            goneTasks.map { it.value }.chunked(CHUNK).forEach { tasks.hardDelete(it); outbox.removeAll(it) }
+            goneLists.map { it.value }.chunked(CHUNK).forEach { lists.hardDelete(it); outbox.removeAll(it) }
+        }
+        if (goneTasks.isNotEmpty() || goneLists.isNotEmpty()) {
+            notifier.notify(TaskChange(ChangeOrigin.REMOTE, taskIds = goneTasks, listIds = goneLists))
+        }
+        return goneTasks.size + goneLists.size
+    }
+
+    /**
+     * Forgets deletion markers last changed before [cutoffMillis]. Markers not yet pushed are kept,
+     * unless [includeUnpushed] (when signed out nothing will ever push them).
+     */
+    suspend fun purgeTombstones(cutoffMillis: Long, includeUnpushed: Boolean): Int = database.withTransaction {
+        val pending = if (includeUnpushed) emptySet() else outbox.pendingIds().toSet()
+        val taskIds = tasks.tombstonesBefore(cutoffMillis).map { it.id }.filterNot { it in pending }
+        val listIds = lists.tombstonesBefore(cutoffMillis).map { it.id }.filterNot { it in pending }
+        taskIds.chunked(CHUNK).forEach { tasks.hardDelete(it); outbox.removeAll(it) }
+        listIds.chunked(CHUNK).forEach { lists.hardDelete(it); outbox.removeAll(it) }
+        taskIds.size + listIds.size
+    }
+
+    suspend fun lastFullSyncAt(): Long = meta.get(KEY_LAST_FULL_SYNC)?.toLongOrNull() ?: 0L
+
+    suspend fun setLastFullSyncAt(millis: Long) = meta.put(SyncMetaEntity(KEY_LAST_FULL_SYNC, millis.toString()))
 
     suspend fun cursor(): Long = meta.get(KEY_CURSOR)?.toLongOrNull() ?: 0L
 
@@ -139,5 +199,9 @@ class SyncStore @Inject constructor(
     private companion object {
         const val KEY_CURSOR = "pull_cursor_ms"
         const val KEY_LAST_SYNC = "last_sync_ms"
+        const val KEY_LAST_FULL_SYNC = "last_full_sync_ms"
+
+        /** Stays well under SQLite's bound-variable limit. */
+        const val CHUNK = 500
     }
 }

@@ -31,6 +31,16 @@ class TaskRepository @Inject constructor(private val database: DotDatabase) {
     fun observeStarred(): Flow<List<Task>> =
         tasks.observeStarred().map { rows -> rows.map { it.toTask() } }.distinctUntilChanged()
 
+    /** Every task in every list (for Today / Upcoming). */
+    fun observeAll(): Flow<List<Task>> =
+        tasks.observeAll().map { rows -> rows.map { it.toTask() } }.distinctUntilChanged()
+
+    /** Tasks whose title or notes contain [query] (case-insensitive), open ones first. */
+    fun search(query: String): Flow<List<Task>> {
+        val escaped = query.trim().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        return tasks.search("%$escaped%").map { rows -> rows.map { it.toTask() } }.distinctUntilChanged()
+    }
+
     fun observeUpcoming(limit: Int): Flow<List<Task>> =
         tasks.observeUpcoming(limit).map { rows -> rows.map { it.toTask() } }.distinctUntilChanged()
 

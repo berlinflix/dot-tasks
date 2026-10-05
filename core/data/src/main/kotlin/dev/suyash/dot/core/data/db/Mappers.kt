@@ -7,7 +7,9 @@ import dev.suyash.dot.core.domain.model.Task
 import dev.suyash.dot.core.domain.model.TaskId
 import dev.suyash.dot.core.domain.model.TaskList
 import dev.suyash.dot.core.domain.model.TaskSource
+import dev.suyash.dot.core.domain.repeat.RepeatRule
 import dev.suyash.dot.core.domain.sync.ClockCodec
+import dev.suyash.dot.core.domain.sync.Hlc
 import dev.suyash.dot.core.domain.sync.ListField
 import dev.suyash.dot.core.domain.sync.ListRecord
 import dev.suyash.dot.core.domain.sync.TaskField
@@ -16,7 +18,9 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
-fun TaskEntity.toTask(): Task = Task(
+fun TaskEntity.toTask(): Task = toTask(ClockCodec.decode<TaskField>(clocks))
+
+private fun TaskEntity.toTask(clocks: Map<TaskField, Hlc>): Task = Task(
     id = TaskId(id),
     listId = ListId(listId),
     title = title,
@@ -39,12 +43,16 @@ fun TaskEntity.toTask(): Task = Task(
     source = runCatching { TaskSource.valueOf(source) }.getOrDefault(TaskSource.MANUAL),
     createdAt = Instant.ofEpochMilli(createdAt),
     updatedAt = Instant.ofEpochMilli(updatedAt),
+    repeat = RepeatRule.parse(recurrence),
+    starredAt = clocks[TaskField.STARRED]?.takeIf { starred }?.let { Instant.ofEpochMilli(it.wallMillis) },
 )
 
-fun TaskEntity.toRecord(): TaskRecord =
-    TaskRecord(task = toTask(), deleted = deleted, clocks = ClockCodec.decode<TaskField>(clocks))
+fun TaskEntity.toRecord(): TaskRecord {
+    val decoded = ClockCodec.decode<TaskField>(clocks)
+    return TaskRecord(task = toTask(decoded), deleted = deleted, clocks = decoded)
+}
 
-fun TaskRecord.toEntity(serverVersion: Long, recurrence: String? = null): TaskEntity = TaskEntity(
+fun TaskRecord.toEntity(serverVersion: Long): TaskEntity = TaskEntity(
     id = task.id.value,
     listId = task.listId.value,
     parentId = task.parentId?.value,
@@ -59,7 +67,7 @@ fun TaskRecord.toEntity(serverVersion: Long, recurrence: String? = null): TaskEn
     ringMode = task.reminder?.mode?.name,
     snoozeCount = task.reminder?.snoozeCount ?: 0,
     lastFiredAt = task.reminder?.lastFiredAt?.toEpochMilli(),
-    recurrence = recurrence,
+    recurrence = task.repeat?.toRRule(),
     position = task.position,
     source = task.source.name,
     createdAt = task.createdAt.toEpochMilli(),

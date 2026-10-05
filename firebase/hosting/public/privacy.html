@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dot — Privacy Policy</title>
+  <meta name="description" content="Privacy policy for Dot, an end-to-end encrypted to-do and reminders app for Android.">
   <style>
     :root { color-scheme: light dark; --fg:#111; --muted:#666; --bg:#f5f5f6; --red:#d71921; }
     @media (prefers-color-scheme: dark) { :root { --fg:#f2f2f2; --muted:#9a9a9f; --bg:#000; } }
@@ -11,44 +12,102 @@
     main { max-width: 720px; margin: 0 auto; padding: 32px 16px 64px; }
     h1 { font-family: ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; font-size: 20px; }
     h2 { font-size: 17px; margin-top: 32px; }
+    a { color: inherit; }
     .dot { display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--red); margin-right:10px; }
     small { color: var(--muted); }
+    li { margin: 6px 0; }
   </style>
 </head>
 <body>
 <main>
   <h1><span class="dot"></span>Dot · Privacy policy</h1>
-  <small>Effective 2 October 2026</small>
+  <small>Effective 5 October 2026</small>
 
-  <p>Dot is a to-do app built so that your tasks stay private. This policy explains what the app handles and why.</p>
+  <p>Dot is a to-do and reminders app for Android, built so that your tasks stay private. It is developed by
+     Suyash Singh (“we”). This policy explains what the app accesses, what leaves your phone, who can see it,
+     how long it is kept and how to delete it. Dot is open source: you can check everything below in the
+     <a href="https://github.com/berlinflix/dot-tasks">source code</a>.</p>
+
+  <h2>Using Dot without an account</h2>
+  <p>You can use Dot without signing in. Your tasks then stay on your phone only, and nothing about them is sent
+     anywhere.</p>
 
   <h2>Your tasks are end-to-end encrypted</h2>
-  <p>Task titles, notes, lists, dates and reminder times are encrypted on your phone before they are uploaded.
-     The cloud copy (Google Firebase, Mumbai region) is ciphertext that neither we nor Google can read.
-     The key is held by you: on your phone, in an end-to-end encrypted Android Block Store backup protected by your screen lock,
-     and as a recovery key that only you have.</p>
-
-  <h2>What is collected</h2>
+  <p>If you sign in to sync, task titles, notes, lists, dates and reminder times are encrypted on your phone before
+     they are uploaded. The cloud copy is stored in Google Firebase (Cloud Firestore, Mumbai region) as ciphertext
+     that neither we nor Google can read. The encryption key never reaches our servers. It is kept:</p>
   <ul>
-    <li><b>Account:</b> when you sign in with Google, Firebase Authentication receives your Google account id, email address and name, solely to identify your encrypted data and let you sign in.</li>
-    <li><b>Encrypted task data:</b> stored only so it can sync between your devices and survive reinstalling the app. The server also sees when records change and their approximate size.</li>
-    <li><b>App integrity:</b> Firebase App Check uses Google Play Integrity to confirm requests come from the genuine app.</li>
+    <li>on your phone, protected by the Android Keystore;</li>
+    <li>in Android Block Store, Google's end-to-end encrypted backup that is protected by your screen lock, so a
+        reinstall can restore it (only where your phone supports end-to-end encrypted backup); and</li>
+    <li>as a recovery key that is shown only to you, once.</li>
   </ul>
-  <p>Dot contains <b>no advertising, analytics or tracking SDKs</b> and does not sell or share data.</p>
+  <p>What the server can see is metadata: how many encrypted records you have, roughly how large they are and when
+     they change.</p>
 
-  <h2>Voice input</h2>
-  <p>The microphone is used only while you add a task by voice. Speech is converted to text by Android's
-     on-device speech recognizer; the app never records audio to storage and never sends audio anywhere.</p>
+  <h2>Information we collect</h2>
+  <ul>
+    <li><b>Account (only if you sign in):</b> signing in with Google gives Firebase Authentication your Google
+        account ID, email address, name and profile-photo link. We use them only to identify your encrypted data
+        and let you sign in. Dot asks Google for nothing beyond this basic profile.</li>
+    <li><b>Encrypted task data (only if you sign in):</b> kept so your tasks sync between your devices and survive
+        reinstalling the app. Because it is end-to-end encrypted, we cannot read it.</li>
+    <li><b>App integrity:</b> Firebase App Check uses Google Play Integrity to confirm that requests come from a
+        genuine copy of the app on a genuine device. This check doesn't include your tasks.</li>
+  </ul>
+  <p>Dot contains <b>no advertising, analytics, crash-reporting or tracking SDKs</b>. We don't sell your data,
+     share it with advertisers or use it for profiling. Google Play itself may collect app crash and performance
+     data under <a href="https://policies.google.com/privacy">Google's privacy policy</a>.</p>
 
-  <h2>On your phone</h2>
-  <p>The local database is encrypted (SQLCipher) with a key protected by the Android Keystore. App data is excluded from Android backups.</p>
+  <h2>Permissions and on-device data</h2>
+  <ul>
+    <li><b>Microphone:</b> used only while you add a task by voice. Android's on-device speech recognizer turns your
+        speech into text on the phone; the app never stores audio and never sends it anywhere. If on-device
+        recognition isn't available, Dot asks you to type instead. It never falls back to cloud speech.</li>
+    <li><b>Notifications, alarms and full-screen alerts:</b> used to ring your reminders at the time you choose.
+        Reminder times are scheduled on your phone only.</li>
+    <li><b>Run at startup:</b> lets Dot re-arm your reminders after the phone restarts.</li>
+  </ul>
+  <p>Dot doesn't access your location, contacts, photos, files or calendar. The local database is encrypted
+     (SQLCipher) with a key protected by the Android Keystore. App data is excluded from Android device backups,
+     and reminder notifications hide task titles on the lock screen unless you turn that on.</p>
 
-  <h2>Deleting your data</h2>
-  <p>In the app: Settings → Account &amp; sync → Delete account. This deletes your encrypted cloud data, the key backup and your account.
-     You can also use the <a href="delete.html">web deletion page</a>. Signing out removes all tasks from the phone.</p>
+  <h2>Who we share data with</h2>
+  <p>We don't share your data with third parties. Google provides the infrastructure (Firebase Authentication,
+     Cloud Firestore, App Check, Play Integrity and Block Store) and processes this data on our behalf, under the
+     <a href="https://firebase.google.com/terms/data-processing-terms">Firebase data processing terms</a>. We may
+     disclose account information if required by law; your tasks can't be disclosed because we can't decrypt them.</p>
+
+  <h2>Security</h2>
+  <p>All traffic uses TLS. Each encrypted record is authenticated and bound to your account, so the server can't
+     read, alter, forge or swap your data. Cloud access rules allow each account to reach only its own data. The
+     cryptography is documented in the
+     <a href="https://github.com/berlinflix/dot-tasks/blob/main/docs/crypto-spec.md">crypto specification</a>.</p>
+
+  <h2>Retention and deletion</h2>
+  <ul>
+    <li>We keep your account and encrypted data until you delete them.</li>
+    <li>Deleting a task erases its content at once. An empty, encrypted deletion marker stays for 30 days so your
+        other devices learn about the deletion; after that it's erased from the server and your phones the next
+        time one of them syncs.</li>
+    <li><b>Delete your account in the app:</b> Settings → Account &amp; sync → Delete account. This deletes your
+        encrypted cloud data, the encrypted key backup and your account.</li>
+    <li><b>Delete it on the web:</b> use the <a href="delete">account deletion page</a>, even without the app
+        installed.</li>
+    <li>Deletion takes effect immediately. Google may keep deleted data in its internal backups for a limited time
+        before it is permanently erased.</li>
+    <li>Signing out removes all tasks and keys from the phone.</li>
+  </ul>
+
+  <h2>Children</h2>
+  <p>Dot isn't directed at children under 13, and we don't knowingly collect information from them.</p>
+
+  <h2>Changes to this policy</h2>
+  <p>If this policy changes, we'll update the date above and publish the new version on this page. Significant
+     changes will also be noted in the app's release notes.</p>
 
   <h2>Contact</h2>
-  <p>Questions: <a href="mailto:CONTACT_EMAIL_PLACEHOLDER">CONTACT_EMAIL_PLACEHOLDER</a></p>
+  <p>Suyash Singh · <a href="mailto:suyashsinghdtg@gmail.com">suyashsinghdtg@gmail.com</a></p>
 </main>
 </body>
 </html>

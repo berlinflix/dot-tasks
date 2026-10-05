@@ -37,6 +37,9 @@ class DotApplication : Application(), Configuration.Provider {
     lateinit var liveSync: Lazy<LiveSync>
 
     @Inject
+    lateinit var appLock: AppLock
+
+    @Inject
     lateinit var workerFactory: Lazy<HiltWorkerFactory>
 
     @Inject
@@ -60,6 +63,7 @@ class DotApplication : Application(), Configuration.Provider {
             // Unlock the signed-in account's keys (from this phone's Keystore) and resume sync.
             accountSession.get().restore()
         }
+        appLock.register()
         // Live sync only while the app is visible.
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) = liveSync.get().start()

@@ -140,10 +140,16 @@ fun AccountCard(viewModel: AccountViewModel = hiltViewModel()) {
         )
     }
     if (confirmDelete) {
+        HideOverlays()
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
             title = { Text("Delete account?") },
-            text = { Text("This permanently deletes your encrypted cloud data, the key backup and your account. Tasks on this phone are removed too. This can't be undone.") },
+            text = {
+                Text(
+                    "This permanently deletes your encrypted cloud data, the key backup and your account. Tasks on this phone " +
+                        "are removed too. This can't be undone. You'll confirm with your Google account first.",
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     confirmDelete = false
@@ -323,8 +329,24 @@ private fun EnterRecoveryKeyDialog(
 private fun SecureWindow() {
     val activity = LocalContext.current.findActivity()
     DisposableEffect(activity) {
-        activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        onDispose { activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
+        val window = activity?.window
+        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        // Other apps' overlays can't draw over a key being shown or typed (no tapjacking or peeking).
+        window?.setHideOverlayWindows(true)
+        onDispose {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            window?.setHideOverlayWindows(false)
+        }
+    }
+}
+
+/** While shown, other apps' overlays are hidden, so they can't trick a tap on a destructive button. */
+@Composable
+private fun HideOverlays() {
+    val activity = LocalContext.current.findActivity()
+    DisposableEffect(activity) {
+        activity?.window?.setHideOverlayWindows(true)
+        onDispose { activity?.window?.setHideOverlayWindows(false) }
     }
 }
 

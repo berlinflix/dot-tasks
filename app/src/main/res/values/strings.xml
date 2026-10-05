@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Dot</string>
+    <string name="shortcut_voice_short">Voice task</string>
+    <string name="shortcut_voice_long">Add a task by voice</string>
+    <string name="shortcut_new_short">New task</string>
+    <string name="shortcut_new_long">Type a new task</string>
 </resources>

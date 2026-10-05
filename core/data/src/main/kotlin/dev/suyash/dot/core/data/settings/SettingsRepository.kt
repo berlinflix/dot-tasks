@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.suyash.dot.core.domain.model.RingMode
 import dev.suyash.dot.core.domain.time.DayParts
+import dev.suyash.dot.core.domain.view.SortOrder
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -33,7 +34,15 @@ data class UserSettings(
     /** Blank the app's preview in the recent-apps switcher. */
     val hideInRecents: Boolean = true,
     val onboardingComplete: Boolean = false,
-)
+    /** Sort order per list id; lists not in here use "My order". */
+    val listSorts: Map<String, SortOrder> = emptyMap(),
+    /** Ask for the fingerprint or screen lock when opening the app. */
+    val appLock: Boolean = false,
+    /** The "back up your tasks" hint was dismissed with "Not now". */
+    val syncHintDismissed: Boolean = false,
+) {
+    fun sortOf(listId: String): SortOrder = listSorts[listId] ?: SortOrder.MY_ORDER
+}
 
 @Singleton
 class SettingsRepository @Inject constructor(private val store: DataStore<Preferences>) {
@@ -58,6 +67,11 @@ class SettingsRepository @Inject constructor(private val store: DataStore<Prefer
             prefs[WIDGET_HIDE] = next.hideWidgetTitles
             prefs[HIDE_RECENTS] = next.hideInRecents
             prefs[ONBOARDED] = next.onboardingComplete
+            prefs[LIST_SORTS] = next.listSorts.entries
+                .filter { (id, sort) -> sort != SortOrder.MY_ORDER && id.none { it == ';' || it == '=' } }
+                .joinToString(";") { (id, sort) -> "$id=${sort.name}" }
+            prefs[APP_LOCK] = next.appLock
+            prefs[SYNC_HINT_DISMISSED] = next.syncHintDismissed
         }
     }
 
@@ -83,6 +97,12 @@ class SettingsRepository @Inject constructor(private val store: DataStore<Prefer
             hideWidgetTitles = this[WIDGET_HIDE] ?: defaults.hideWidgetTitles,
             hideInRecents = this[HIDE_RECENTS] ?: defaults.hideInRecents,
             onboardingComplete = this[ONBOARDED] ?: defaults.onboardingComplete,
+            listSorts = this[LIST_SORTS].orEmpty().split(';').mapNotNull { entry ->
+                val (id, sort) = entry.split('=', limit = 2).takeIf { it.size == 2 } ?: return@mapNotNull null
+                runCatching { SortOrder.valueOf(sort) }.getOrNull()?.let { id to it }
+            }.toMap(),
+            appLock = this[APP_LOCK] ?: defaults.appLock,
+            syncHintDismissed = this[SYNC_HINT_DISMISSED] ?: defaults.syncHintDismissed,
         )
     }
 
@@ -100,5 +120,8 @@ class SettingsRepository @Inject constructor(private val store: DataStore<Prefer
         val WIDGET_HIDE = booleanPreferencesKey("widget_hide_titles")
         val HIDE_RECENTS = booleanPreferencesKey("hide_in_recents")
         val ONBOARDED = booleanPreferencesKey("onboarding_complete")
+        val LIST_SORTS = stringPreferencesKey("list_sorts")
+        val APP_LOCK = booleanPreferencesKey("app_lock")
+        val SYNC_HINT_DISMISSED = booleanPreferencesKey("sync_hint_dismissed")
     }
 }

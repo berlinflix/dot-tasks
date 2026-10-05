@@ -7,7 +7,8 @@ import dev.suyash.dot.core.domain.model.TaskList
  * Independently-mergeable groups of fields ("registers"). Editing a task's title on one phone and
  * completing it on another must not lose either change, so each register carries its own [Hlc].
  */
-enum class TaskField { TITLE, NOTES, STATUS, STARRED, DUE, REMINDER, PLACEMENT, DELETED }
+// Only ever append: names are stored and synced (older app versions ignore names they don't know).
+enum class TaskField { TITLE, NOTES, STATUS, STARRED, DUE, REMINDER, PLACEMENT, DELETED, REPEAT }
 
 enum class ListField { TITLE, POSITION, DELETED }
 

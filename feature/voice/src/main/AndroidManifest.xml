@@ -21,5 +21,37 @@
             android:taskAffinity="dev.suyash.dot.voice"
             android:theme="@style/Theme.Dot.Voice"
             android:windowSoftInputMode="adjustResize" />
+
+        <!-- "Share → Dot" and the launcher shortcuts. No UI of its own: it opens the sheet above, where
+             the user confirms before anything is saved. Reads plain text only. -->
+        <activity
+            android:name=".QuickCaptureActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter android:label="@string/share_to_dot">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="dev.suyash.dot.action.VOICE_TASK" />
+                <action android:name="dev.suyash.dot.action.TYPE_TASK" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- Quick Settings tile. BIND_QUICK_SETTINGS_TILE means only the system can bind it. -->
+        <service
+            android:name=".VoiceTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_mic"
+            android:label="@string/tile_voice_task"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

@@ -38,6 +38,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -87,11 +88,25 @@ class VoiceCaptureActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val typing = intent.getBooleanExtra(EXTRA_TYPE, false)
+        if (savedInstanceState == null && typing) viewModel.startTyping(intent.getStringExtra(EXTRA_TEXT).orEmpty())
         setContent {
             DotTheme {
-                VoiceCapture(viewModel = viewModel, onClose = ::finish, onEdit = ::openInApp, firstLaunch = savedInstanceState == null)
+                VoiceCapture(
+                    viewModel = viewModel,
+                    onClose = ::finish,
+                    onEdit = ::openInApp,
+                    listen = savedInstanceState == null && !typing,
+                )
             }
         }
+    }
+
+    /** Already open (single task) and asked again: switch to what was asked for. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra(EXTRA_TYPE, false)) viewModel.startTyping(intent.getStringExtra(EXTRA_TEXT).orEmpty()) else viewModel.retry()
     }
 
     private fun openInApp(taskId: String) {
@@ -106,14 +121,21 @@ class VoiceCaptureActivity : ComponentActivity() {
         /** Must match the main app's open-task extra. */
         const val EXTRA_OPEN_TASK_ID = "dev.suyash.dot.extra.OPEN_TASK_ID"
 
+        private const val EXTRA_TYPE = "dev.suyash.dot.extra.TYPE"
+        private const val EXTRA_TEXT = "dev.suyash.dot.extra.TEXT"
+
         fun intent(context: android.content.Context): Intent =
             Intent(context, VoiceCaptureActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+
+        /** Opens the same sheet for typing, optionally pre-filled (shared text). */
+        fun typingIntent(context: android.content.Context, text: String = ""): Intent =
+            intent(context).putExtra(EXTRA_TYPE, true).putExtra(EXTRA_TEXT, text)
     }
 }
 
 @Composable
-private fun VoiceCapture(viewModel: VoiceViewModel, onClose: () -> Unit, onEdit: (String) -> Unit, firstLaunch: Boolean) {
+private fun VoiceCapture(viewModel: VoiceViewModel, onClose: () -> Unit, onEdit: (String) -> Unit, listen: Boolean) {
     val context = LocalContext.current
     val view = LocalView.current
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -123,7 +145,7 @@ private fun VoiceCapture(viewModel: VoiceViewModel, onClose: () -> Unit, onEdit:
     }
 
     LaunchedEffect(Unit) {
-        if (!firstLaunch) return@LaunchedEffect
+        if (!listen) return@LaunchedEffect
         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         if (granted) viewModel.start() else permission.launch(Manifest.permission.RECORD_AUDIO)
     }
@@ -166,7 +188,7 @@ private fun VoiceCapture(viewModel: VoiceViewModel, onClose: () -> Unit, onEdit:
                         onDone = onClose,
                     )
                     is VoiceState.Failed -> FailedContent(current.reason, onRetry = viewModel::retry, onType = viewModel::typeInstead)
-                    is VoiceState.Typing -> TypingContent(unavailable = current.unavailable, onSubmit = viewModel::submitTyped)
+                    is VoiceState.Typing -> TypingContent(unavailable = current.unavailable, initial = current.initial, onSubmit = viewModel::submitTyped)
                     VoiceState.NeedsPermission -> PermissionContent(
                         onOpenSettings = {
                             context.startActivity(
@@ -245,6 +267,13 @@ private fun SavedContent(
                     onClick = { viewModel.touched(); viewModel.toggleMode() },
                 )
             }
+            state.repeat?.let { repeat ->
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(DotIcons.Repeat, contentDescription = null, tint = colors.muted, modifier = Modifier.size(16.dp))
+                    Text(repeat, style = MaterialTheme.typography.bodyMedium, color = colors.muted)
+                }
+            }
         } else {
             Text("No time heard — remind me…", style = MaterialTheme.typography.bodyMedium, color = colors.muted)
             Spacer(Modifier.height(8.dp))
@@ -292,8 +321,8 @@ private fun FailedContent(reason: SpeechFailure, onRetry: () -> Unit, onType: ()
 }
 
 @Composable
-private fun TypingContent(unavailable: Boolean, onSubmit: (String) -> Unit) {
-    var text by rememberSaveable { mutableStateOf("") }
+private fun TypingContent(unavailable: Boolean, initial: String, onSubmit: (String) -> Unit) {
+    var text by rememberSaveable { mutableStateOf(initial) }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
     Column(Modifier.fillMaxWidth()) {

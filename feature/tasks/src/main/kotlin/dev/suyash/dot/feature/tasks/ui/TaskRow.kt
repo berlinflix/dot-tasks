@@ -49,6 +49,10 @@ import java.time.ZonedDateTime
 
 /**
  * One task. Swipe right to complete, swipe left to snooze. Tap to edit.
+ *
+ * @param listName shown in views that span lists.
+ * @param subtaskProgress done/total of its checklist, if it has one.
+ * @param indent true for a subtask under its parent.
  */
 @Composable
 internal fun TaskRow(
@@ -59,6 +63,9 @@ internal fun TaskRow(
     onOpen: () -> Unit,
     onSnoozeRequest: () -> Unit,
     modifier: Modifier = Modifier,
+    listName: String? = null,
+    subtaskProgress: Pair<Int, Int>? = null,
+    indent: Boolean = false,
 ) {
     val view = LocalView.current
     val swipe = rememberSwipeToDismissBoxState(
@@ -84,7 +91,7 @@ internal fun TaskRow(
         enableDismissFromEndToStart = !task.isDone,
         backgroundContent = { SwipeBackground(swipe.targetValue, task.isDone) },
     ) {
-        TaskRowContent(task, now, onToggleDone, onToggleStar, onOpen)
+        TaskRowContent(task, now, onToggleDone, onToggleStar, onOpen, listName, subtaskProgress, indent)
     }
 }
 
@@ -118,19 +125,24 @@ private fun TaskRowContent(
     onToggleDone: () -> Unit,
     onToggleStar: () -> Unit,
     onOpen: () -> Unit,
+    listName: String?,
+    subtaskProgress: Pair<Int, Int>?,
+    indent: Boolean,
 ) {
     val context = LocalContext.current
     val formats = remember(context) { TimeFormats.from(context) }
     val colors = DotTheme.colors
     val reminderAt = task.reminder?.at?.atZone(ZoneId.systemDefault())
-    val overdue = !task.isDone && reminderAt != null && reminderAt.isBefore(now)
+    val overdue = !task.isDone && (
+        (reminderAt != null && reminderAt.isBefore(now)) || (reminderAt == null && task.dueDate?.isBefore(now.toLocalDate()) == true)
+        )
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
             .clickable(onClick = onOpen)
-            .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+            .padding(start = if (indent) 44.dp else 12.dp, end = 4.dp, top = if (indent) 0.dp else 6.dp, bottom = if (indent) 0.dp else 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         DoneCircle(done = task.isDone, onClick = onToggleDone)
@@ -147,13 +159,18 @@ private fun TaskRowContent(
             if (task.notes.isNotBlank() && !task.isDone) {
                 Text(task.notes, style = MaterialTheme.typography.bodySmall, color = colors.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            val meta = buildList {
-                if (reminderAt != null && !task.isDone) add(formats.dayAndTime(reminderAt, now))
-                else task.dueDate?.let { if (!task.isDone) add(formats.day(it, now.toLocalDate())) }
+            val whenText = when {
+                task.isDone -> null
+                reminderAt != null -> formats.dayAndTime(reminderAt, now)
+                else -> task.dueDate?.let { formats.day(it, now.toLocalDate()) }
             }
-            if (meta.isNotEmpty()) {
+            val extras = listOfNotNull(
+                subtaskProgress?.takeIf { it.second > 0 }?.let { (done, total) -> "$done/$total" },
+                listName,
+            )
+            if (whenText != null || task.repeat != null || extras.isNotEmpty()) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 4.dp)) {
-                    if (reminderAt != null) {
+                    if (reminderAt != null && !task.isDone) {
                         Icon(
                             imageVector = if (task.reminder?.mode == RingMode.RING) DotIcons.Phone else DotIcons.Bell,
                             contentDescription = if (task.reminder?.mode == RingMode.RING) "Rings" else "Notifies",
@@ -161,11 +178,21 @@ private fun TaskRowContent(
                             modifier = Modifier.size(14.dp),
                         )
                     }
-                    Text(
-                        meta.joinToString(" · "),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (overdue) colors.accent else colors.muted,
-                    )
+                    if (whenText != null) {
+                        Text(whenText, style = MaterialTheme.typography.labelMedium, color = if (overdue) colors.accent else colors.muted)
+                    }
+                    if (task.repeat != null && !task.isDone) {
+                        Icon(DotIcons.Repeat, contentDescription = "Repeats", tint = colors.muted, modifier = Modifier.size(14.dp))
+                    }
+                    if (extras.isNotEmpty()) {
+                        Text(
+                            (if (whenText != null || task.repeat != null) "· " else "") + extras.joinToString(" · "),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = colors.muted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
         }

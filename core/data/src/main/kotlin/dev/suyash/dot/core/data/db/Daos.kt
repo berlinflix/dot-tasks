@@ -19,6 +19,40 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE starred = 1 AND deleted = 0 ORDER BY done ASC, position ASC, id ASC")
     fun observeStarred(): Flow<List<TaskEntity>>
 
+    /** Every live task, for the views that span lists (Today, Upcoming). */
+    @Query("SELECT * FROM tasks WHERE deleted = 0 ORDER BY done ASC, position ASC, id ASC")
+    fun observeAll(): Flow<List<TaskEntity>>
+
+    /** [pattern] is a LIKE pattern with `\` as the escape character. */
+    @Query(
+        """SELECT * FROM tasks WHERE deleted = 0 AND (title LIKE :pattern ESCAPE '\' OR notes LIKE :pattern ESCAPE '\')
+           ORDER BY done ASC, updated_at DESC LIMIT 200""",
+    )
+    fun search(pattern: String): Flow<List<TaskEntity>>
+
+    @Query("SELECT * FROM tasks WHERE parent_id = :parentId AND deleted = 0 ORDER BY position ASC, id ASC")
+    suspend fun subtasksOf(parentId: String): List<TaskEntity>
+
+    @Query("SELECT position FROM tasks WHERE parent_id = :parentId AND deleted = 0 ORDER BY position DESC, id DESC LIMIT 1")
+    suspend fun lastSubtaskPosition(parentId: String): String?
+
+    /** The first position after [after] among siblings (top-level tasks when [parentId] is null). */
+    @Query(
+        """SELECT position FROM tasks WHERE list_id = :listId AND deleted = 0 AND parent_id IS :parentId AND position > :after
+           ORDER BY position ASC LIMIT 1""",
+    )
+    suspend fun nextSiblingPosition(listId: String, parentId: String?, after: String): String?
+
+    @Query("SELECT * FROM tasks WHERE list_id = :listId AND deleted = 0 AND done = 1")
+    suspend fun completedInList(listId: String): List<TaskEntity>
+
+    /** Deleted tasks last changed before [cutoff] (millis). */
+    @Query("SELECT * FROM tasks WHERE deleted = 1 AND updated_at < :cutoff")
+    suspend fun tombstonesBefore(cutoff: Long): List<TaskEntity>
+
+    @Query("DELETE FROM tasks WHERE id IN (:ids)")
+    suspend fun hardDelete(ids: Collection<String>)
+
     /** Open tasks that have a reminder or due date, soonest first — for widgets and "Upcoming". */
     @Query(
         """SELECT * FROM tasks WHERE deleted = 0 AND done = 0 AND (remind_at IS NOT NULL OR due_date IS NOT NULL)
@@ -87,6 +121,12 @@ interface TaskListDao {
     @Query("SELECT * FROM task_lists")
     suspend fun allIncludingDeleted(): List<TaskListEntity>
 
+    @Query("SELECT * FROM task_lists WHERE deleted = 1 AND updated_at < :cutoff")
+    suspend fun tombstonesBefore(cutoff: Long): List<TaskListEntity>
+
+    @Query("DELETE FROM task_lists WHERE id IN (:ids)")
+    suspend fun hardDelete(ids: Collection<String>)
+
     @Upsert
     suspend fun upsert(list: TaskListEntity)
 
@@ -111,6 +151,12 @@ interface OutboxDao {
 
     @Query("UPDATE outbox SET attempts = attempts + 1 WHERE record_id = :recordId")
     suspend fun incrementAttempts(recordId: String)
+
+    @Query("SELECT record_id FROM outbox")
+    suspend fun pendingIds(): List<String>
+
+    @Query("DELETE FROM outbox WHERE record_id IN (:recordIds)")
+    suspend fun removeAll(recordIds: Collection<String>)
 
     @Query("SELECT COUNT(*) FROM outbox")
     fun observeCount(): Flow<Int>

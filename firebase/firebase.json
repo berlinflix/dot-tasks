@@ -5,12 +5,17 @@
   },
   "hosting": {
     "public": "hosting/public",
+    "cleanUrls": true,
     "ignore": ["**/.*"],
     "headers": [
       {
         "source": "**",
         "headers": [
           { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'self'; script-src 'self' https://apis.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.googleusercontent.com; connect-src 'self' https://*.googleapis.com; frame-src https://dot-tasks-pys6y.firebaseapp.com https://accounts.google.com; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+          },
           { "key": "X-Content-Type-Options", "value": "nosniff" },
           { "key": "Referrer-Policy", "value": "no-referrer" },
           { "key": "X-Frame-Options", "value": "DENY" },

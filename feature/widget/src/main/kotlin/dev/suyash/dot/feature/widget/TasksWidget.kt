@@ -53,6 +53,7 @@ import dev.suyash.dot.core.domain.model.TaskId
 import dev.suyash.dot.core.ui.TimeFormats
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 
 /**
  * "What's next" widget: dot-matrix open-task counter, voice + add buttons, and the upcoming tasks with
@@ -115,11 +116,11 @@ private fun TasksWidgetContent(snapshot: WidgetSnapshot) {
             Column(GlanceModifier.defaultWeight()) {
                 Text("OPEN", style = TextStyle(color = WidgetColors.muted, fontSize = 10.sp, fontFamily = FontFamily.Monospace))
                 Text(
-                    formats.day(snapshot.now.toLocalDate(), snapshot.now.toLocalDate()).uppercase(),
+                    snapshot.now.format(DateTimeFormatter.ofPattern("EEE d MMM", context.resources.configuration.locales[0])).uppercase(),
                     style = TextStyle(color = WidgetColors.onSurface, fontSize = 12.sp, fontFamily = FontFamily.Monospace),
                 )
             }
-            RoundButton(R.drawable.ic_widget_plus, "Open tasks", filled = false, action = actionStartActivity(WidgetIntents.openApp(context)))
+            RoundButton(R.drawable.ic_widget_plus, "Type a new task", filled = false, action = actionStartActivity(WidgetIntents.type(context)))
             Spacer(GlanceModifier.width(8.dp))
             RoundButton(R.drawable.ic_widget_mic, "Add a task by voice", filled = true, action = actionStartActivity(WidgetIntents.voice(context)))
         }

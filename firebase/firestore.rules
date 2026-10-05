@@ -11,18 +11,27 @@ service cloud.firestore {
         && request.auth.token.firebase.sign_in_provider == 'google.com';
     }
 
-    // Encrypted task/list records: { v, ct, updatedAt, del }.
+    // Encrypted task/list records: { v, ct, updatedAt, del, exp? }.
     //  - ct      : AEAD ciphertext (XChaCha20-Poly1305), bound to uid + record id + version.
     //  - v       : optimistic-concurrency version; every write must be exactly +1.
     //  - updatedAt: server time only (clients can't backdate or forge the pull cursor).
+    //  - exp     : required on deletion markers (del == true) and only there. A TTL policy erases the
+    //              marker at that time. 7–400 days ahead: long enough for devices that reconcile weekly
+    //              to see it, and every marker is guaranteed to go away.
     function validRecord(rid) {
       let d = request.resource.data;
-      return d.keys().hasOnly(['v', 'ct', 'updatedAt', 'del'])
+      return d.keys().hasOnly(['v', 'ct', 'updatedAt', 'del', 'exp'])
         && d.keys().hasAll(['v', 'ct', 'updatedAt', 'del'])
         && d.v is int
         && d.ct is bytes && d.ct.size() > 0 && d.ct.size() <= 65536
         && d.updatedAt == request.time
         && d.del is bool
+        && (d.del
+              ? ('exp' in d
+                  && d.exp is timestamp
+                  && d.exp >= request.time + duration.value(7, 'd')
+                  && d.exp <= request.time + duration.value(400, 'd'))
+              : !('exp' in d))
         && rid.size() >= 8 && rid.size() <= 64;
     }
 

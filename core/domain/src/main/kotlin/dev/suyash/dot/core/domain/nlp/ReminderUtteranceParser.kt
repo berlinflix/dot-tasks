@@ -1,5 +1,8 @@
 package dev.suyash.dot.core.domain.nlp
 
+import dev.suyash.dot.core.domain.repeat.Frequency
+import dev.suyash.dot.core.domain.repeat.MonthlyBy
+import dev.suyash.dot.core.domain.repeat.RepeatRule
 import dev.suyash.dot.core.domain.time.DayParts
 import dev.suyash.dot.core.domain.time.SnoozeCalculator
 import dev.suyash.dot.core.domain.time.SnoozePreset
@@ -27,6 +30,8 @@ data class ParsedUtterance(
     val ringRequested: Boolean,
     /** The recognized time phrases, for highlighting in the confirmation UI. */
     val timePhrases: List<String>,
+    /** Set for "every Monday", "daily", "on the 1st of every month"…; [at] is then its first occurrence. */
+    val repeat: RepeatRule? = null,
 )
 
 /**
@@ -64,14 +69,56 @@ class ReminderUtteranceParser(
             }
         }
 
-        val (at, defaulted) = resolve(state, now, preferMorning = command.wake)
+        var (at, defaulted) = resolve(state, now, preferMorning = command.wake)
+        val repeat = state.repeat?.let { rule ->
+            val (first, timeDefaulted) = firstOccurrence(rule, state, now, at, command.wake) ?: return@let null
+            at = first
+            defaulted = timeDefaulted
+            rule.anchoredTo(first.toLocalDate())
+        }
         return ParsedUtterance(
             title = buildTitle(tokens, consumed, command),
             at = at,
             timeDefaulted = defaulted,
             ringRequested = command.ringRequested,
             timePhrases = phrases,
+            repeat = repeat,
         )
+    }
+
+    /**
+     * When a new series starts: the said time (a bare hour reads like on a future day, so "every day at
+     * 8" is 8 AM), else the day part, else the morning; on the first date that fits the rule and is
+     * still ahead.
+     */
+    private fun firstOccurrence(
+        rule: RepeatRule,
+        s: TemporalState,
+        now: ZonedDateTime,
+        resolved: LocalDateTime?,
+        preferMorning: Boolean,
+    ): Pair<LocalDateTime, Boolean>? {
+        val hour = s.hour
+        val part = s.dayPart
+        val time = when {
+            s.relative != null -> resolved?.toLocalTime()
+            hour != null && s.midnight -> LocalTime.MIDNIGHT
+            hour != null -> preferredTime(s, hour, candidateTimes(s, hour, preferMorning), preferMorning)
+            part != null -> timeOf(part)
+            else -> null
+        }
+        val nowLocal = now.toLocalDateTime().truncatedTo(ChronoUnit.MINUTES)
+        val at = time ?: dayParts.morning
+        var date = rule.firstOnOrAfter(s.date ?: resolved?.toLocalDate() ?: now.toLocalDate()) ?: return null
+        if (!date.atTime(at).isAfter(nowLocal)) {
+            // That slot has passed, so the series starts at the next one.
+            date = when {
+                s.date == null -> rule.firstOnOrAfter(date.plusDays(1)) // no day said: from tomorrow
+                rule.frequency == Frequency.YEARLY -> rule.nextAfter(date) // that date next year
+                else -> rule.anchoredTo(date).firstOnOrAfter(date.plusDays(1)) // next slot on the said day(s)
+            } ?: return null
+        }
+        return date.atTime(at) to (time == null)
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -213,6 +260,7 @@ class ReminderUtteranceParser(
         var twentyFourHour = false
         var dayPart: DayPart? = null
         var midnight = false
+        var repeat: RepeatRule? = null
     }
 
     private class Extractor(
@@ -224,6 +272,90 @@ class ReminderUtteranceParser(
 
     /** Ordered from most to least specific; a later extractor never re-uses tokens an earlier one took. */
     private val extractors: List<Extractor> = listOf(
+        // ---- Repeats first, so "every monday" is a series rather than next Monday. ----
+        // every other friday / every second tuesday (without "of the month": fortnightly)
+        Extractor("""\b(?:every|each)\s+(?:other|second|alternate)\s+($WEEKDAY_WORDS)\b(?!\s+of\s+(?:the|every|each)\s+month)""") { m, s, now ->
+            val day = WEEKDAY_NAMES[m.groupValues[1]] ?: return@Extractor false
+            setRepeat(s, now, RepeatRule(Frequency.WEEKLY, interval = 2, weekdays = setOf(day)))
+        },
+        // every 2nd tuesday (of the month) / the last friday of every month
+        Extractor("""\b(?:every|each)\s+($ORDINALS)\s+($WEEKDAY_WORDS)(?:\s+of\s+(?:the|every|each)\s+month)?\b""") { m, s, now ->
+            setRepeat(s, now, monthlyNth(m.groupValues[1], m.groupValues[2]) ?: return@Extractor false)
+        },
+        Extractor("""\b(?:on\s+)?(?:the\s+)?($ORDINALS)\s+($WEEKDAY_WORDS)\s+of\s+(?:every|each)\s+month\b""") { m, s, now ->
+            setRepeat(s, now, monthlyNth(m.groupValues[1], m.groupValues[2]) ?: return@Extractor false)
+        },
+        // (on the) last day of every month
+        Extractor("""\b(?:(?:on\s+)?(?:the\s+)?last\s+day\s+of\s+(?:every|each)\s+month|(?:every|each)\s+last\s+day\s+of\s+the\s+month)\b""") { _, s, now ->
+            setRepeat(s, now, RepeatRule(Frequency.MONTHLY, monthlyBy = MonthlyBy.DayOfMonth(MonthlyBy.LAST)))
+        },
+        // every 5th (of the month) / the 1st of every month / every month on the 3rd
+        Extractor("""\b(?:every|each)\s+(\d{1,2})(?:st|nd|rd|th)\b(?:\s+of\s+(?:the|every|each)\s+month\b)?""") { m, s, now ->
+            setRepeat(s, now, monthlyOn(m.groupValues[1]) ?: return@Extractor false)
+        },
+        Extractor("""\b(?:on\s+)?(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)\s+of\s+(?:every|each)\s+month\b""") { m, s, now ->
+            setRepeat(s, now, monthlyOn(m.groupValues[1]) ?: return@Extractor false)
+        },
+        Extractor("""\b(?:every|each)\s+month\s+on\s+the\s+(\d{1,2})(?:st|nd|rd|th)\b""") { m, s, now ->
+            setRepeat(s, now, monthlyOn(m.groupValues[1]) ?: return@Extractor false)
+        },
+        // every weekday / on weekdays / workdays
+        Extractor(
+            """\b(?:(?:every|each)\s+(?:week\s?day|work\s?day|working\s+day|business\s+day)s?|on\s+(?:week\s?days|work\s?days)|week\s?days)\b""",
+        ) { _, s, now ->
+            setRepeat(s, now, RepeatRule(Frequency.WEEKLY, weekdays = RepeatRule.WEEKDAYS))
+        },
+        // every weekend / on weekends
+        Extractor("""\b(?:(?:every|each)\s+weekends?|on\s+weekends|weekends)\b""") { _, s, now ->
+            setRepeat(s, now, RepeatRule(Frequency.WEEKLY, weekdays = dayParts.weekendDays))
+        },
+        // every monday and thursday / each fri / on mondays
+        Extractor("""\b(?:every|each)\s+($WEEKDAY_WORD_S(?:\s+(?:and\s+|or\s+|&\s+)?$WEEKDAY_WORD_S)*)\b""") { m, s, now ->
+            setRepeat(s, now, weeklyOn(m.groupValues[1]) ?: return@Extractor false)
+        },
+        Extractor("""\bon\s+((?:$WEEKDAYS)s(?:\s+(?:and\s+|or\s+|&\s+)?(?:$WEEKDAYS)s)*)\b""") { m, s, now ->
+            setRepeat(s, now, weeklyOn(m.groupValues[1]) ?: return@Extractor false)
+        },
+        // every morning / each evening
+        Extractor("""\b(?:every|each)\s+(morning|afternoon|evening|night)\b""") { m, s, now ->
+            val part = dayPartOf(m.groupValues[1])
+            if (s.dayPart != null && s.dayPart != part) return@Extractor false
+            if (!setRepeat(s, now, RepeatRule(Frequency.DAILY))) return@Extractor false
+            s.dayPart = part
+            true
+        },
+        // every day / every other week / every 3 months / each year
+        Extractor("""\b(?:every|each)\s+(?:(other|second|third|\d{1,3})\s+)?(day|week|month|year)s?\b""") { m, s, now ->
+            val interval = when (val n = m.groupValues[1]) {
+                "" -> 1
+                "other", "second" -> 2
+                "third" -> 3
+                else -> n.toInt()
+            }
+            if (interval !in 1..RepeatRule.MAX_INTERVAL) return@Extractor false
+            val frequency = when (m.groupValues[2]) {
+                "day" -> Frequency.DAILY
+                "week" -> Frequency.WEEKLY
+                "month" -> Frequency.MONTHLY
+                else -> Frequency.YEARLY
+            }
+            setRepeat(s, now, RepeatRule(frequency, interval))
+        },
+        // take vitamins daily / pay rent monthly on the 1st — only last or before a time phrase, so
+        // "weekly report" stays a title.
+        Extractor(
+            """\b(daily|weekly|monthly|yearly|annually|fortnightly|biweekly)\b(?=\s*$|\s+(?:at|on|in|from|starting|by|around|before|please|thanks|pls|\d))""",
+        ) { m, s, now ->
+            val rule = when (m.groupValues[1]) {
+                "daily" -> RepeatRule(Frequency.DAILY)
+                "weekly" -> RepeatRule(Frequency.WEEKLY)
+                "monthly" -> RepeatRule(Frequency.MONTHLY)
+                "fortnightly", "biweekly" -> RepeatRule(Frequency.WEEKLY, interval = 2)
+                else -> RepeatRule(Frequency.YEARLY)
+            }
+            setRepeat(s, now, rule)
+        },
+        // ---- One-off dates and times. ----
         // in 20 minutes / after 2 hours / in half an hour / in a couple of days
         Extractor(
             """\b(?:in|after|within)\s+(\d{1,3}|an|a|half an|half a|a couple of|couple of)\s*(minutes?|mins?|hours?|hrs?|hr|days?|weeks?)\b""",
@@ -458,6 +590,34 @@ class ReminderUtteranceParser(
         return true
     }
 
+    /** Records the series; rules tied to particular days also pin the first occurrence's date. */
+    private fun setRepeat(s: TemporalState, now: ZonedDateTime, rule: RepeatRule): Boolean {
+        if (s.repeat != null) return false
+        s.repeat = rule
+        if ((rule.weekdays.isNotEmpty() || rule.monthlyBy != null) && s.date == null) {
+            // EXPLICIT: resolution must not shift it; firstOccurrence() moves on along the rule instead.
+            rule.firstOnOrAfter(now.toLocalDate())?.let { setDate(s, it, DateSource.EXPLICIT) }
+        }
+        return true
+    }
+
+    private fun weeklyOn(text: String): RepeatRule? {
+        val days = text.split(' ')
+            .filter { it.isNotBlank() && it != "and" && it != "or" && it != "&" }
+            .map { word -> WEEKDAY_NAMES[word] ?: WEEKDAY_NAMES[word.removeSuffix("s")] ?: return null }
+            .toSet()
+        return RepeatRule(Frequency.WEEKLY, weekdays = days)
+    }
+
+    private fun monthlyOn(dayText: String): RepeatRule? =
+        dayText.toIntOrNull()?.takeIf { it in 1..31 }?.let { RepeatRule(Frequency.MONTHLY, monthlyBy = MonthlyBy.DayOfMonth(it)) }
+
+    private fun monthlyNth(ordinalText: String, weekdayText: String): RepeatRule? {
+        val ordinal = ORDINAL_WORDS[ordinalText] ?: return null
+        val day = WEEKDAY_NAMES[weekdayText] ?: return null
+        return RepeatRule(Frequency.MONTHLY, monthlyBy = MonthlyBy.NthWeekday(ordinal, day))
+    }
+
     private fun setWeekday(s: TemporalState, now: ZonedDateTime, qualifier: String, day: DayOfWeek): Boolean {
         if (s.date != null) return false
         val today = now.toLocalDate()
@@ -594,6 +754,13 @@ class ReminderUtteranceParser(
                 "sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?"
         const val WEEKDAYS = "monday|tuesday|wednesday|thursday|friday|saturday|sunday"
         const val WEEKDAY_ABBREVIATIONS = "mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun"
+        const val WEEKDAY_WORDS = "$WEEKDAYS|$WEEKDAY_ABBREVIATIONS"
+        const val WEEKDAY_WORD_S = "(?:$WEEKDAYS|$WEEKDAY_ABBREVIATIONS)s?"
+        const val ORDINALS = "first|second|third|fourth|fifth|last|1st|2nd|3rd|4th|5th"
+        val ORDINAL_WORDS: Map<String, Int> = mapOf(
+            "first" to 1, "1st" to 1, "second" to 2, "2nd" to 2, "third" to 3, "3rd" to 3,
+            "fourth" to 4, "4th" to 4, "fifth" to 5, "5th" to 5, "last" to MonthlyBy.LAST,
+        )
         val COMPOUND_TENS = setOf(20, 30, 40, 50)
 
         val WEEKDAY_NAMES: Map<String, DayOfWeek> = buildMap {

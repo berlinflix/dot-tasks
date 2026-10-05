@@ -1,3 +1,6 @@
+import java.io.StringReader
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.dot.android.application)
     alias(libs.plugins.dot.android.compose)
@@ -6,13 +9,30 @@ plugins {
     alias(libs.plugins.google.services)
 }
 
+// Release signing (the Play upload key) comes from keystore.properties at the project root, which is
+// git-ignored: storeFile, storePassword, keyAlias, keyPassword. Without it, release builds are unsigned.
+val releaseSigning: Properties? = providers.fileContents(rootProject.layout.projectDirectory.file("keystore.properties"))
+    .asText.orNull
+    ?.let { text -> Properties().apply { load(StringReader(text)) } }
+
 android {
     namespace = "dev.suyash.dot"
 
     defaultConfig {
         applicationId = "dev.suyash.dot"
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "1.0.0"
+    }
+
+    signingConfigs {
+        if (releaseSigning != null) {
+            create("release") {
+                storeFile = file(releaseSigning.getProperty("storeFile"))
+                storePassword = releaseSigning.getProperty("storePassword")
+                keyAlias = releaseSigning.getProperty("keyAlias")
+                keyPassword = releaseSigning.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -20,6 +40,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 

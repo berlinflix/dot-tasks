@@ -5,6 +5,7 @@ import com.google.firebase.firestore.Blob
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.firestore.MemoryCacheSettings
 import com.google.firebase.firestore.MetadataChanges
@@ -23,8 +24,9 @@ import javax.inject.Singleton
  * Firestore implementation. Layout:
  * ```
  * users/{uid}/meta/keyring        { v, wrappedMk, kcv, encDataKeyset, createdAt, updatedAt }
- * users/{uid}/records/{rid}       { v, ct, updatedAt, del }
+ * users/{uid}/records/{rid}       { v, ct, updatedAt, del, exp? }
  * ```
+ * `exp` is set only on deletion markers; a Firestore TTL policy on it deletes them server-side.
  * The SDK's disk cache is disabled (memory only): Room is the offline store, so there is no second
  * on-disk copy — and everything Firestore holds is ciphertext anyway.
  */
@@ -64,23 +66,30 @@ class FirestoreRemoteStore @Inject constructor() : RemoteStore {
         keyringRef(uid).set(keyring.toMap()).await()
     }
 
-    override suspend fun <T> transact(uid: String, rid: String, build: (RemoteDoc?) -> Pair<RemoteWrite, T>): T =
+    override suspend fun <T> transact(uid: String, rid: String, build: (RemoteDoc?) -> Pair<RemoteWrite?, T>): T = try {
         db.runTransaction { tx ->
             val ref = records(uid).document(rid)
             val snapshot = tx.get(ref)
             val current = if (snapshot.exists()) snapshot.toRemoteDoc() else null
             val (write, result) = build(current)
-            tx.set(
-                ref,
-                mapOf(
+            if (write != null) {
+                val fields = mutableMapOf<String, Any>(
                     "v" to write.version,
                     "ct" to Blob.fromBytes(write.ciphertext),
                     "updatedAt" to FieldValue.serverTimestamp(),
                     "del" to write.deleted,
-                ),
-            )
+                )
+                write.expiresAtMillis?.let { fields["exp"] = Timestamp(Date(it)) }
+                tx.set(ref, fields)
+            }
             result
         }.await()
+    } catch (e: FirebaseFirestoreException) {
+        if (e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED || e.code == FirebaseFirestoreException.Code.INVALID_ARGUMENT) {
+            throw RemoteRejectedException(e)
+        }
+        throw e
+    }
 
     override suspend fun pull(uid: String, sinceMillis: Long, after: Any?, limit: Int): RemotePage {
         var query: Query = records(uid)
@@ -116,6 +125,27 @@ class FirestoreRemoteStore @Inject constructor() : RemoteStore {
         keyringRef(uid).delete().await()
     }
 
+    override suspend fun deleteExpiredMarkers(uid: String, nowMillis: Long): Int {
+        val now = Timestamp(Date(nowMillis))
+        // Only deletion markers have "exp", so this range query never matches a live record.
+        val expired = records(uid).whereLessThan("exp", now).limit(EXPIRED_BATCH).get(Source.SERVER).await()
+        var deleted = 0
+        for (doc in expired.documents) {
+            val erased = db.runTransaction { tx ->
+                val current = tx.get(doc.reference)
+                val exp = current.getTimestamp("exp")
+                if (current.exists() && current.getBoolean("del") == true && exp != null && exp < now) {
+                    tx.delete(doc.reference)
+                    true
+                } else {
+                    false
+                }
+            }.await()
+            if (erased) deleted++
+        }
+        return deleted
+    }
+
     private fun DocumentSnapshot.toRemoteDoc(): RemoteDoc? {
         val version = getLong("v") ?: return null
         val blob = getBlob("ct") ?: return null
@@ -135,6 +165,11 @@ class FirestoreRemoteStore @Inject constructor() : RemoteStore {
             keyCheckValue = getBlob("kcv")?.toBytes() ?: return null,
             encryptedDataKeyset = getBlob("encDataKeyset")?.toBytes() ?: return null,
         )
+    }
+
+    private companion object {
+        /** Per sync; the rest go next time. */
+        const val EXPIRED_BATCH = 200L
     }
 
     private fun Keyring.toMap(): Map<String, Any> = mapOf(

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shown in the system share sheet. -->
+    <string name="share_to_dot">Add to Dot</string>
+    <string name="tile_voice_task">Voice task</string>
+</resources>

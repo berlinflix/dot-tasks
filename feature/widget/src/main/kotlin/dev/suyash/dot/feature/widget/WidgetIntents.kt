@@ -9,9 +9,15 @@ internal object WidgetIntents {
     private const val VOICE_ACTIVITY = "dev.suyash.dot.feature.voice.VoiceCaptureActivity"
     const val EXTRA_OPEN_TASK_ID = "dev.suyash.dot.extra.OPEN_TASK_ID"
 
+    /** Must match VoiceCaptureActivity.EXTRA_TYPE. */
+    private const val EXTRA_TYPE = "dev.suyash.dot.extra.TYPE"
+
     fun voice(context: Context): Intent =
         Intent().setComponent(ComponentName(context.packageName, VOICE_ACTIVITY))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+
+    /** The same capture sheet, opened for typing. */
+    fun type(context: Context): Intent = voice(context).putExtra(EXTRA_TYPE, true)
 
     fun openApp(context: Context, taskId: String? = null): Intent {
         val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)

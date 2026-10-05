@@ -12,6 +12,9 @@ import dev.suyash.dot.core.domain.events.TaskChange
 import dev.suyash.dot.core.domain.events.TaskChangeObserver
 import dev.suyash.dot.core.domain.model.Reminder
 import dev.suyash.dot.core.domain.model.RingMode
+import dev.suyash.dot.core.domain.repeat.Frequency
+import dev.suyash.dot.core.domain.repeat.RepeatEnd
+import dev.suyash.dot.core.domain.repeat.RepeatRule
 import dev.suyash.dot.core.domain.sync.Hlc
 import dev.suyash.dot.core.domain.sync.HlcClock
 import dev.suyash.dot.core.domain.sync.TaskField
@@ -110,13 +113,179 @@ class TaskCommandsTest {
     }
 
     @Test
-    fun deleteAndRestore() = runTest {
+    fun delete_erasesContent_andRestoreBringsItBack() = runTest {
         val list = commands.ensureDefaultList()
-        val id = commands.createTask(TaskDraft(list, "temp"))
-        commands.delete(id)
+        val id = commands.createTask(TaskDraft(list, "Secret plan", notes = "details", starred = true, repeat = RepeatRule(Frequency.DAILY)))
+        val deleted = commands.delete(id)
         assertThat(repository.observeTasks(list).first()).isEmpty()
-        commands.restore(id)
-        assertThat(repository.observeTasks(list).first().map { it.id }).containsExactly(id)
+        val row = db.taskDao().get(id.value)!!
+        assertThat(row.deleted).isTrue()
+        assertThat(row.title).isEmpty()
+        assertThat(row.notes).isEmpty()
+        assertThat(row.recurrence).isNull()
+        assertThat(row.starred).isFalse()
+        commands.restore(deleted)
+        val back = repository.getTask(id)!!
+        assertThat(back.title).isEqualTo("Secret plan")
+        assertThat(back.notes).isEqualTo("details")
+        assertThat(back.isStarred).isTrue()
+        assertThat(back.repeat).isEqualTo(RepeatRule(Frequency.DAILY))
+    }
+
+    @Test
+    fun completingARepeatingTask_schedulesTheNextOccurrence() = runTest {
+        val list = commands.ensureDefaultList()
+        val due = LocalDate.parse("2026-10-02")
+        val at = ZonedDateTime.parse("2026-10-02T18:00+05:30[Asia/Kolkata]").toInstant()
+        val id = commands.createTask(TaskDraft(list, "Gym", dueDate = due, reminder = Reminder(at, zone), repeat = RepeatRule(Frequency.DAILY)))
+        commands.setDone(id, true)
+
+        val next = repository.getTask(id.successor())!!
+        assertThat(next.title).isEqualTo("Gym")
+        assertThat(next.isDone).isFalse()
+        assertThat(next.dueDate).isEqualTo(due.plusDays(1))
+        assertThat(next.reminder!!.at).isEqualTo(at.plusSeconds(24 * 3600))
+        assertThat(next.repeat).isEqualTo(RepeatRule(Frequency.DAILY))
+        val done = repository.getTask(id)!!
+        assertThat(done.isDone).isTrue()
+        assertThat(done.repeat).isNull() // the series moved on
+        assertThat(repository.nextPendingReminder()?.id).isEqualTo(next.id)
+    }
+
+    @Test
+    fun undoingACompletion_takesBackTheNextOccurrence() = runTest {
+        val list = commands.ensureDefaultList()
+        val rule = RepeatRule(Frequency.WEEKLY, end = RepeatEnd.AfterCount(3))
+        val id = commands.createTask(TaskDraft(list, "Report", dueDate = LocalDate.parse("2026-10-02"), repeat = rule))
+        commands.setDone(id, true)
+        assertThat(repository.getTask(id.successor())!!.repeat?.end).isEqualTo(RepeatEnd.AfterCount(2))
+        commands.setDone(id, false)
+        assertThat(repository.getTask(id.successor())).isNull()
+        val task = repository.getTask(id)!!
+        assertThat(task.isDone).isFalse()
+        assertThat(task.repeat).isEqualTo(rule.anchoredTo(LocalDate.parse("2026-10-02")))
+    }
+
+    @Test
+    fun completingLate_skipsOccurrencesThatAreAlreadyOver() = runTest {
+        val list = commands.ensureDefaultList() // today is 2026-10-02
+        val id = commands.createTask(TaskDraft(list, "Water plants", dueDate = LocalDate.parse("2026-09-28"), repeat = RepeatRule(Frequency.DAILY)))
+        commands.setDone(id, true)
+        assertThat(repository.getTask(id.successor())!!.dueDate).isEqualTo(LocalDate.parse("2026-10-02"))
+    }
+
+    @Test
+    fun theLastCountedOccurrence_endsTheSeries() = runTest {
+        val list = commands.ensureDefaultList()
+        val id = commands.createTask(
+            TaskDraft(list, "Course", dueDate = LocalDate.parse("2026-10-02"), repeat = RepeatRule(Frequency.DAILY, end = RepeatEnd.AfterCount(1))),
+        )
+        commands.setDone(id, true)
+        assertThat(repository.getTask(id.successor())).isNull()
+    }
+
+    @Test
+    fun subtasks_completeWithTheirParent_andComeBackOnUndo() = runTest {
+        val list = commands.ensureDefaultList()
+        val parent = commands.createTask(TaskDraft(list, "Trip"))
+        val passport = commands.addSubtask(parent, "Passport")!!
+        val tickets = commands.addSubtask(parent, "Tickets")!!
+        now = now.plusSeconds(1)
+        commands.setDone(tickets, true) // done on its own, before the parent
+        now = now.plusSeconds(1)
+        commands.setDone(parent, true)
+        assertThat(repository.getTask(passport)!!.isDone).isTrue()
+        commands.setDone(parent, false)
+        assertThat(repository.getTask(passport)!!.isDone).isFalse()
+        assertThat(repository.getTask(tickets)!!.isDone).isTrue() // wasn't completed by the parent
+        // Subtasks are listed after their parent, in order.
+        assertThat(repository.observeTasks(list).first().filter { it.parentId == parent }.sortedBy { it.position }.map { it.title })
+            .containsExactly("Passport", "Tickets").inOrder()
+    }
+
+    @Test
+    fun repeatingParent_getsAFreshChecklist() = runTest {
+        val list = commands.ensureDefaultList()
+        val parent = commands.createTask(TaskDraft(list, "Weekly review", dueDate = LocalDate.parse("2026-10-02"), repeat = RepeatRule(Frequency.WEEKLY)))
+        val sub = commands.addSubtask(parent, "Inbox zero")!!
+        commands.setDone(parent, true)
+        val freshSub = repository.getTask(sub.successor())!!
+        assertThat(freshSub.parentId).isEqualTo(parent.successor())
+        assertThat(freshSub.isDone).isFalse()
+        assertThat(freshSub.title).isEqualTo("Inbox zero")
+    }
+
+    @Test
+    fun deletingAParent_deletesItsSubtasks_andUndoRestoresAll() = runTest {
+        val list = commands.ensureDefaultList()
+        val parent = commands.createTask(TaskDraft(list, "Party"))
+        val sub = commands.addSubtask(parent, "Cake")!!
+        val deleted = commands.delete(parent)
+        assertThat(deleted.map { it.id }).containsExactly(parent, sub)
+        assertThat(repository.getTask(sub)).isNull()
+        commands.restore(deleted)
+        assertThat(repository.getTask(sub)!!.title).isEqualTo("Cake")
+    }
+
+    @Test
+    fun deleteCompleted_removesOnlyCompletedTasks() = runTest {
+        val list = commands.ensureDefaultList()
+        val open = commands.createTask(TaskDraft(list, "Open"))
+        val done = commands.createTask(TaskDraft(list, "Done"))
+        commands.setDone(done, true)
+        assertThat(commands.deleteCompleted(list)).isEqualTo(1)
+        assertThat(repository.observeTasks(list).first().map { it.id }).containsExactly(open)
+    }
+
+    @Test
+    fun moveToList_takesSubtasksAlong() = runTest {
+        val home = commands.ensureDefaultList()
+        val work = commands.createList("Work")
+        val parent = commands.createTask(TaskDraft(home, "Deck"))
+        val sub = commands.addSubtask(parent, "Charts")!!
+        commands.moveToList(parent, work)
+        assertThat(repository.observeTasks(work).first().map { it.id }).containsExactly(parent, sub)
+        assertThat(repository.observeTasks(home).first()).isEmpty()
+    }
+
+    @Test
+    fun duplicate_copiesBelowTheOriginal_withSubtasks() = runTest {
+        val list = commands.ensureDefaultList()
+        val below = commands.createTask(TaskDraft(list, "Below"))
+        val original = commands.createTask(TaskDraft(list, "Original"))
+        commands.addSubtask(original, "Step")
+        val copy = commands.duplicate(original)!!
+        val topLevel = repository.observeTasks(list).first().filter { it.parentId == null }.sortedBy { it.position }
+        assertThat(topLevel.map { it.id }).containsExactly(original, copy, below).inOrder()
+        assertThat(repository.observeTasks(list).first().filter { it.parentId == copy }.map { it.title }).containsExactly("Step")
+    }
+
+    @Test
+    fun oldDeletionMarkers_arePurged_onceUploaded() = runTest {
+        val list = commands.ensureDefaultList()
+        val id = commands.createTask(TaskDraft(list, "Gone"))
+        commands.delete(id)
+        val cutoff = now.plusSeconds(1).toEpochMilli()
+        // Still waiting to be uploaded: kept, unless nothing will ever upload it (signed out).
+        assertThat(store.purgeTombstones(cutoff, includeUnpushed = false)).isEqualTo(0)
+        assertThat(store.purgeTombstones(cutoff, includeUnpushed = true)).isEqualTo(1)
+        assertThat(db.taskDao().get(id.value)).isNull()
+        assertThat(store.pendingOutbox(10).map { it.recordId }).doesNotContain(id.value)
+    }
+
+    @Test
+    fun recordsGoneFromTheCloud_areDroppedLocally() = runTest {
+        val list = commands.ensureDefaultList()
+        val kept = commands.createTask(TaskDraft(list, "Kept"))
+        val gone = commands.createTask(TaskDraft(list, "Deleted elsewhere"))
+        db.taskDao().setServerVersion(kept.value, 3)
+        db.taskDao().setServerVersion(gone.value, 2)
+        val unsynced = commands.createTask(TaskDraft(list, "Not uploaded yet"))
+        val dropped = store.dropAllGone { _, id -> id == kept.value || id == list.value }
+        assertThat(dropped).isEqualTo(1)
+        assertThat(repository.getTask(gone)).isNull()
+        assertThat(repository.getTask(kept)).isNotNull()
+        assertThat(repository.getTask(unsynced)).isNotNull() // never synced, so never "gone"
     }
 
     @Test

@@ -1,5 +1,9 @@
 package dev.suyash.dot.feature.settings
 
+import android.app.KeyguardManager
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -28,6 +32,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -50,6 +56,7 @@ import dev.suyash.dot.core.designsystem.theme.DotTheme
 import dev.suyash.dot.core.domain.model.RingMode
 import dev.suyash.dot.core.domain.time.DayParts
 import java.time.DayOfWeek
+import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
@@ -68,6 +75,13 @@ fun SettingsRoute(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val exportFile = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) viewModel.export(context.contentResolver, uri)
+    }
+    LaunchedEffect(viewModel) {
+        viewModel.messages.collect { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
+    }
     SettingsScreen(
         settings = settings,
         onBack = onBack,
@@ -76,6 +90,15 @@ fun SettingsRoute(
         accountSection = accountSection,
         widgetsSection = widgetsSection,
         onOpenRingtoneSettings = onOpenRingtoneSettings,
+        onExport = { exportFile.launch("dot-tasks-${LocalDate.now()}.json") },
+        onAppLock = { enable ->
+            val secure = context.getSystemService(KeyguardManager::class.java)?.isDeviceSecure == true
+            if (enable && !secure) {
+                Toast.makeText(context, "Set a screen lock in system settings first.", Toast.LENGTH_LONG).show()
+            } else {
+                viewModel.update { it.copy(appLock = enable) }
+            }
+        },
         appVersion = appVersion,
     )
 }
@@ -90,9 +113,14 @@ private fun SettingsScreen(
     accountSection: @Composable () -> Unit,
     widgetsSection: @Composable () -> Unit,
     onOpenRingtoneSettings: () -> Unit,
+    onExport: () -> Unit,
+    onAppLock: (Boolean) -> Unit,
     appVersion: String,
 ) {
     var editingTime by rememberSaveable { mutableStateOf<String?>(null) }
+    val uriHandler = LocalUriHandler.current
+    // No browser installed is the only failure; there's nothing useful to show for it.
+    val openUrl = { url: String -> runCatching { uriHandler.openUri(url) }; Unit }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().statusBarsPadding(),
@@ -172,6 +200,14 @@ private fun SettingsScreen(
         item { Header("Privacy") }
         item {
             SwitchRow(
+                title = "App lock",
+                subtitle = "Ask for your fingerprint or screen lock to open Dot. Reminders still ring.",
+                checked = settings.appLock,
+                onChange = onAppLock,
+            )
+        }
+        item {
+            SwitchRow(
                 title = "Show titles on the lock screen",
                 subtitle = "Off: the ring screen and notifications say only “Task reminder” until you unlock.",
                 checked = settings.showTitlesOnLockScreen,
@@ -194,6 +230,22 @@ private fun SettingsScreen(
                 onChange = { value -> onUpdate { it.copy(hideInRecents = value) } },
             )
         }
+        item {
+            NavRow(
+                title = "Privacy policy",
+                subtitle = "What Dot stores, and how to delete your account",
+                onClick = { openUrl(PRIVACY_POLICY_URL) },
+            )
+        }
+
+        item { Header("Your data") }
+        item {
+            NavRow(
+                title = "Export tasks",
+                subtitle = "Save all lists and tasks as a JSON file. The file isn't encrypted.",
+                onClick = onExport,
+            )
+        }
 
         item { Header("About") }
         item {
@@ -203,6 +255,13 @@ private fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = DotTheme.colors.muted,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+        }
+        item {
+            NavRow(
+                title = "Source code & licenses",
+                subtitle = "Open source under the Apache License 2.0",
+                onClick = { openUrl(SOURCE_CODE_URL) },
             )
         }
         item { Spacer(Modifier.navigationBarsPadding()) }
@@ -324,3 +383,6 @@ private fun TimeDialog(initial: LocalTime, onDismiss: () -> Unit, onConfirm: (Lo
         text = { TimePicker(state = state) },
     )
 }
+
+private const val PRIVACY_POLICY_URL = "https://dot-tasks-pys6y.web.app/privacy"
+private const val SOURCE_CODE_URL = "https://github.com/berlinflix/dot-tasks"
