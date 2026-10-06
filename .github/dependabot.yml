@@ -14,7 +14,14 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
   - package-ecosystem: npm
     directory: /firebase/rules-test
     schedule:
       interval: monthly
+    groups:
+      # firebase and @firebase/rules-unit-testing require each other as peers, so they must move together.
+      rules-test:
+        patterns: ["*"]
