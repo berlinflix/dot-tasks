@@ -20,7 +20,7 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       # google-services.json is not committed. Use the real one from the GOOGLE_SERVICES_JSON secret
       # (base64) when it's set, otherwise a placeholder — enough to build and test, as CI never calls Firebase.
