@@ -11,7 +11,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import dev.suyash.dot.core.designsystem.theme.DotTheme
@@ -59,7 +62,14 @@ class RingingActivity : ComponentActivity() {
                 } else {
                     val state by viewModel.state.collectAsStateWithLifecycle()
                     LaunchedEffect(state.finished) { if (state.finished) finish() }
-                    val keyguardLocked = remember { getSystemService(KeyguardManager::class.java).isKeyguardLocked }
+                    // Re-checked on every resume: the phone can lock while this screen is still ringing, and
+                    // waking it shows this screen over the lock screen again.
+                    val keyguard = remember { getSystemService(KeyguardManager::class.java) }
+                    var keyguardLocked by remember { mutableStateOf(keyguard.isKeyguardLocked) }
+                    LifecycleResumeEffect(keyguard) {
+                        keyguardLocked = keyguard.isKeyguardLocked
+                        onPauseOrDispose {}
+                    }
                     RingingScreen(
                         tasks = state.tasks,
                         now = viewModel::now,

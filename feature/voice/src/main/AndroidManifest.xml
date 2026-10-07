@@ -12,7 +12,8 @@
     </queries>
 
     <application>
-        <!-- Opened by the home-screen widget and the in-app mic (explicit PendingIntents only). -->
+        <!-- Opened by the widgets, the tile, the in-app mic and the launcher shortcuts. Not exported:
+             shortcuts run as this app, so no other app can start it (or its microphone). -->
         <activity
             android:name=".VoiceCaptureActivity"
             android:excludeFromRecents="true"
@@ -20,10 +21,16 @@
             android:launchMode="singleTask"
             android:taskAffinity="dev.suyash.dot.voice"
             android:theme="@style/Theme.Dot.Voice"
-            android:windowSoftInputMode="adjustResize" />
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="dev.suyash.dot.action.VOICE_TASK" />
+                <action android:name="dev.suyash.dot.action.TYPE_TASK" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
 
-        <!-- "Share → Dot" and the launcher shortcuts. No UI of its own: it opens the sheet above, where
-             the user confirms before anything is saved. Reads plain text only. -->
+        <!-- "Share → Dot". No UI of its own: it opens the sheet above in typing mode, where the user
+             confirms before anything is saved. Reads plain text only. -->
         <activity
             android:name=".QuickCaptureActivity"
             android:excludeFromRecents="true"
@@ -34,11 +41,6 @@
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="dev.suyash.dot.action.VOICE_TASK" />
-                <action android:name="dev.suyash.dot.action.TYPE_TASK" />
-                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
 

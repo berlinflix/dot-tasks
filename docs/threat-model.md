@@ -13,14 +13,14 @@ Task titles, notes, lists, due dates and reminder times; the voice input (epheme
 | Google account takeover | Attacker gets ciphertext + a keyring wrapped by the recovery key. Block Store backups need the victim's screen lock. |
 | Server tampering (swap, replay, rollback, forged deletes) | AEAD associated data binds uid + record id + version; deletion lives inside the ciphertext. |
 | Another user reading or writing your data | Firestore rules: owner-only, Google sign-in only, App Check. |
-| Other apps on the phone | Sandbox; nothing exported except the launcher, widget providers and protected system broadcasts; explicit + immutable PendingIntents; `intentMatchingFlags="enforceIntentFilter"`; intents carry ids only. |
+| Other apps on the phone | Sandbox; nothing exported except the launcher, the "Share to Dot" target, the Quick Settings tile (only the system can bind it), widget providers and protected system broadcasts; explicit + immutable PendingIntents; `intentMatchingFlags="enforceIntentFilter"`; intents carry ids only; other apps can't capture Dot's audio. |
 | Lost or stolen locked phone | File-based encryption + SQLCipher database with a Keystore-bound key; lock-screen title hiding option; notifications use a generic public version. |
 | Backups or device-to-device copies leaking data | `allowBackup=false` and data-extraction rules exclude everything; keys are Keystore-bound and useless elsewhere. |
 | Shoulder-surfing / screen capture of secrets | Recovery-key screens use `FLAG_SECURE`; clipboard copies are marked sensitive and cleared after 60 s; Recents previews are blanked by default. |
 | Tapjacking (overlays tricking taps) | Other apps' overlays are hidden (`setHideOverlayWindows`) on the recovery-key and account-deletion screens. |
-| Someone picking up the unlocked phone | Optional app lock (biometrics or screen lock, re-locks after 30 s in the background). Reminders still ring; titles follow the lock-screen setting. |
+| Someone picking up the unlocked phone | Optional app lock (biometrics or screen lock, re-locks after 30 s in the background); while it's on, widgets show counts only. Reminders still ring; titles follow the lock-screen setting, re-checked if the phone locks while ringing. |
 | Accidental or coerced account deletion | Deletion asks for the Google account again before anything is deleted. |
-| Other apps injecting tasks | "Share to Dot" and shortcuts only pre-fill the capture sheet; nothing is saved until the user confirms. Only plain text is accepted. |
+| Other apps injecting tasks or turning on the microphone | Only "Share to Dot" is open to other apps: it pre-fills the capture sheet in typing mode and nothing is saved until the user confirms. Only plain text is accepted. Voice capture isn't exported; the launcher shortcuts reach it because the system starts them as Dot. |
 | Web deletion page (XSS / framing) | Strict Content-Security-Policy (no inline script), `frame-ancestors 'none'`, HSTS, no third-party scripts beyond Google sign-in. |
 | Stale deleted data | Deleted tasks are erased at once (content-free markers); markers expire after 30 days ([crypto-spec](crypto-spec.md#retention)). |
 | Data leaking into logs | Release builds strip `android.util.Log` (R8); no task text is ever logged. |

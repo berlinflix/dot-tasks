@@ -88,7 +88,7 @@ class VoiceCaptureActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val typing = intent.getBooleanExtra(EXTRA_TYPE, false)
+        val typing = intent.isTyping()
         if (savedInstanceState == null && typing) viewModel.startTyping(intent.getStringExtra(EXTRA_TEXT).orEmpty())
         setContent {
             DotTheme {
@@ -106,8 +106,10 @@ class VoiceCaptureActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (intent.getBooleanExtra(EXTRA_TYPE, false)) viewModel.startTyping(intent.getStringExtra(EXTRA_TEXT).orEmpty()) else viewModel.retry()
+        if (intent.isTyping()) viewModel.startTyping(intent.getStringExtra(EXTRA_TEXT).orEmpty()) else viewModel.retry()
     }
+
+    private fun Intent.isTyping() = getBooleanExtra(EXTRA_TYPE, false) || action == ACTION_TYPE_TASK
 
     private fun openInApp(taskId: String) {
         val launch = packageManager.getLaunchIntentForPackage(packageName) ?: return
@@ -120,6 +122,10 @@ class VoiceCaptureActivity : ComponentActivity() {
     companion object {
         /** Must match the main app's open-task extra. */
         const val EXTRA_OPEN_TASK_ID = "dev.suyash.dot.extra.OPEN_TASK_ID"
+
+        /** Launcher shortcuts (res/xml/shortcuts.xml). They run as this app, so the activity stays unexported. */
+        const val ACTION_VOICE_TASK = "dev.suyash.dot.action.VOICE_TASK"
+        const val ACTION_TYPE_TASK = "dev.suyash.dot.action.TYPE_TASK"
 
         private const val EXTRA_TYPE = "dev.suyash.dot.extra.TYPE"
         private const val EXTRA_TEXT = "dev.suyash.dot.extra.TEXT"

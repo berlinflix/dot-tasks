@@ -19,6 +19,9 @@ import dev.suyash.dot.core.domain.events.TaskChangeObserver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -31,9 +34,18 @@ import javax.inject.Singleton
 class WidgetRefresher @Inject constructor(
     @ApplicationContext private val context: Context,
     @ApplicationScope private val scope: CoroutineScope,
+    settings: SettingsRepository,
 ) : TaskChangeObserver {
 
     private var pending: Job? = null
+
+    init {
+        // Hiding titles (or turning on App lock) must take effect on the home screen at once, not at
+        // the next task edit.
+        scope.launch {
+            settings.settings.map { it.hidesWidgetTitles }.distinctUntilChanged().drop(1).collect { request() }
+        }
+    }
 
     override suspend fun onChanged(change: TaskChange) {
         request()

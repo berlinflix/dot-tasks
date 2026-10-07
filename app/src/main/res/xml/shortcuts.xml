@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Long-press the app icon. Both open the capture sheet; nothing is saved until confirmed. -->
+<!-- Long-press the app icon. Both open the capture sheet directly; the system starts shortcut
+     intents as this app, so the sheet doesn't have to be exported. -->
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
     <shortcut
         android:enabled="true"
@@ -9,7 +10,7 @@
         android:shortcutShortLabel="@string/shortcut_voice_short">
         <intent
             android:action="dev.suyash.dot.action.VOICE_TASK"
-            android:targetClass="dev.suyash.dot.feature.voice.QuickCaptureActivity"
+            android:targetClass="dev.suyash.dot.feature.voice.VoiceCaptureActivity"
             android:targetPackage="dev.suyash.dot" />
     </shortcut>
     <shortcut
@@ -20,7 +21,7 @@
         android:shortcutShortLabel="@string/shortcut_new_short">
         <intent
             android:action="dev.suyash.dot.action.TYPE_TASK"
-            android:targetClass="dev.suyash.dot.feature.voice.QuickCaptureActivity"
+            android:targetClass="dev.suyash.dot.feature.voice.VoiceCaptureActivity"
             android:targetPackage="dev.suyash.dot" />
     </shortcut>
 </shortcuts>

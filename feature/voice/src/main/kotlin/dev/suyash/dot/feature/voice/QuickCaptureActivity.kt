@@ -5,21 +5,16 @@ import android.content.Intent
 import android.os.Bundle
 
 /**
- * Entry points from outside the app: "Share → Dot" and the launcher shortcuts. It shows nothing
- * itself and hands over to the (not exported) capture sheet, where the user confirms before anything
- * is saved, so another app can never add tasks silently. Only plain text is read, never files.
+ * "Share → Dot": the only screen other apps can open. It shows nothing itself and hands the text to
+ * the (not exported) capture sheet in typing mode, where the user confirms before anything is saved,
+ * so another app can never add tasks silently or turn on the microphone. Only plain text is read.
  */
 class QuickCaptureActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val next = when (intent?.action) {
-            Intent.ACTION_SEND -> VoiceCaptureActivity.typingIntent(this, sharedText(intent))
-            ACTION_VOICE_TASK -> VoiceCaptureActivity.intent(this)
-            ACTION_TYPE_TASK -> VoiceCaptureActivity.typingIntent(this)
-            else -> null
-        }
-        next?.let(::startActivity)
+        // Android 12–13 deliver explicit intents even when no intent filter matches: accept only shares.
+        if (intent?.action == Intent.ACTION_SEND) startActivity(VoiceCaptureActivity.typingIntent(this, sharedText(intent)))
         finish()
     }
 
@@ -36,9 +31,7 @@ class QuickCaptureActivity : Activity() {
             .take(MAX_LENGTH)
     }.getOrDefault("") // a malformed extra from another app is simply ignored
 
-    companion object {
-        const val ACTION_VOICE_TASK = "dev.suyash.dot.action.VOICE_TASK"
-        const val ACTION_TYPE_TASK = "dev.suyash.dot.action.TYPE_TASK"
-        private const val MAX_LENGTH = 500
+    private companion object {
+        const val MAX_LENGTH = 500
     }
 }

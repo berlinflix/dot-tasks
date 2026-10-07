@@ -201,7 +201,7 @@ private fun SettingsScreen(
         item {
             SwitchRow(
                 title = "App lock",
-                subtitle = "Ask for your fingerprint or screen lock to open Dot. Reminders still ring.",
+                subtitle = "Ask for your fingerprint or screen lock to open Dot. Widgets hide task titles; reminders still ring.",
                 checked = settings.appLock,
                 onChange = onAppLock,
             )
@@ -217,8 +217,9 @@ private fun SettingsScreen(
         item {
             SwitchRow(
                 title = "Hide task titles in widgets",
-                subtitle = "Widgets show counts only.",
-                checked = settings.hideWidgetTitles,
+                subtitle = if (settings.appLock) "Always on while App lock is on." else "Widgets show counts only.",
+                checked = settings.hidesWidgetTitles,
+                enabled = !settings.appLock,
                 onChange = { value -> onUpdate { it.copy(hideWidgetTitles = value) } },
             )
         }
@@ -333,11 +334,11 @@ private fun NavRow(title: String, subtitle: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit, enabled: Boolean = true) {
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable(role = Role.Switch) { onChange(!checked) }
+            .clickable(enabled = enabled, role = Role.Switch) { onChange(!checked) }
             .padding(horizontal = 24.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -348,6 +349,7 @@ private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChang
         Switch(
             checked = checked,
             onCheckedChange = onChange,
+            enabled = enabled,
             colors = SwitchDefaults.colors(checkedTrackColor = DotTheme.colors.accent),
         )
     }

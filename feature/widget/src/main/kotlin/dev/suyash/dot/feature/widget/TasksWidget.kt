@@ -57,7 +57,8 @@ import java.time.format.DateTimeFormatter
 
 /**
  * "What's next" widget: dot-matrix open-task counter, voice + add buttons, and the upcoming tasks with
- * one-tap complete. Honours the "hide titles in widgets" privacy setting.
+ * one-tap complete. Shows counts only when "hide titles in widgets" is on, and while App lock is on
+ * (a locked app shouldn't show its tasks on the home screen).
  */
 class TasksWidget : GlanceAppWidget() {
 
@@ -65,10 +66,11 @@ class TasksWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val deps = EntryPointAccessors.fromApplication(context.applicationContext, WidgetEntryPoint::class.java)
+        val settings = deps.settings().current()
         val snapshot = WidgetSnapshot(
             tasks = deps.repository().upcomingSnapshot(limit = 8),
             openCount = deps.repository().openCountSnapshot(),
-            hideTitles = deps.settings().current().hideWidgetTitles,
+            hideTitles = settings.hidesWidgetTitles,
             now = ZonedDateTime.now(ZoneId.systemDefault()),
         )
         provideContent { TasksWidgetContent(snapshot) }

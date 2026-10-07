@@ -42,6 +42,9 @@ data class UserSettings(
     val syncHintDismissed: Boolean = false,
 ) {
     fun sortOf(listId: String): SortOrder = listSorts[listId] ?: SortOrder.MY_ORDER
+
+    /** Widgets show counts only when asked to, and always while App lock is on. */
+    val hidesWidgetTitles: Boolean get() = hideWidgetTitles || appLock
 }
 
 @Singleton
