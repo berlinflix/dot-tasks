@@ -22,6 +22,9 @@ Thanks for helping! Bug reports, ideas and pull requests are all welcome.
 ```
 
 - Every write goes through `TaskCommands` (one transaction plus an outbox row); please keep it that way.
+- Keep the main thread free: database, Keystore, file and system calls, parsing and list building belong on a
+  background dispatcher (repositories and `TaskCommands` are already main-safe). Debug builds log StrictMode
+  violations.
 - Don't log task content. Don't add analytics, ads or tracking libraries.
 - Changes to the encrypted payload must be additive: new protobuf field numbers only, and update
   [`docs/crypto-spec.md`](docs/crypto-spec.md).

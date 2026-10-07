@@ -13,6 +13,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import dev.suyash.dot.core.data.settings.SettingsRepository
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,9 +40,13 @@ class MainActivity : ComponentActivity() {
     /** A task to open, delivered by a notification tap. */
     private val openTaskId = MutableStateFlow<String?>(null)
 
+    /** False until settings have loaded: the splash stays up instead of an empty first frame. */
+    private var contentReady = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
+        splash.setKeepOnScreenCondition { !contentReady }
         enableEdgeToEdge()
         if (savedInstanceState == null) openTaskId.value = intent.taskIdExtra()
 
@@ -61,6 +66,7 @@ class MainActivity : ComponentActivity() {
                 val lockEnabled by appLockEnabled.collectAsStateWithLifecycle(initialValue = null)
                 val locked by appLock.locked.collectAsStateWithLifecycle()
                 var lockMessage by remember { mutableStateOf<String?>(null) }
+                if (lockEnabled != null) SideEffect { contentReady = true }
                 when (lockEnabled) {
                     null -> Unit // settings not loaded yet: show nothing rather than flash the tasks
                     true -> if (locked) {

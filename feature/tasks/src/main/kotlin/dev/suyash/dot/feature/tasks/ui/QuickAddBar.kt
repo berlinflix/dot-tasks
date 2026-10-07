@@ -19,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,8 +37,11 @@ import dev.suyash.dot.core.designsystem.icon.DotIcons
 import dev.suyash.dot.core.designsystem.theme.DotTheme
 import dev.suyash.dot.core.domain.nlp.ParsedUtterance
 import dev.suyash.dot.core.ui.TimeFormats
+import kotlinx.coroutines.delay
 import java.time.ZoneId
 import java.time.ZonedDateTime
+
+private const val PREVIEW_DELAY_MS = 120L
 
 /**
  * Bottom input: type "pay rent on 5th 9am" and the parsed time shows up live before you submit.
@@ -46,7 +50,7 @@ import java.time.ZonedDateTime
 @Composable
 internal fun QuickAddBar(
     now: () -> ZonedDateTime,
-    parse: (String) -> ParsedUtterance,
+    parse: suspend (String) -> ParsedUtterance,
     onSubmit: (String) -> Unit,
     onMic: () -> Unit,
     modifier: Modifier = Modifier,
@@ -55,7 +59,16 @@ internal fun QuickAddBar(
     val formats = remember(context) { TimeFormats.from(context) }
     val colors = DotTheme.colors
     var text by rememberSaveable { mutableStateOf("") }
-    val parsed = remember(text) { if (text.isBlank()) null else parse(text) }
+    // The preview parses in the background once typing pauses, so keystrokes never wait for it.
+    var parsed by remember { mutableStateOf<ParsedUtterance?>(null) }
+    LaunchedEffect(text) {
+        if (text.isBlank()) {
+            parsed = null
+            return@LaunchedEffect
+        }
+        delay(PREVIEW_DELAY_MS)
+        parsed = parse(text)
+    }
 
     Column(modifier.fillMaxWidth()) {
         AnimatedVisibility(visible = parsed?.at != null) {

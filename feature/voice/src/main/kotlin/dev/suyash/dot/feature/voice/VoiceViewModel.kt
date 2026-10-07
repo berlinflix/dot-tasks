@@ -19,12 +19,14 @@ import dev.suyash.dot.feature.voice.speech.SpeechFailure
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Clock
 import java.time.ZonedDateTime
 import java.util.Locale
@@ -148,9 +150,8 @@ class VoiceViewModel @Inject constructor(
         listenJob?.cancel()
         viewModelScope.launch {
             val current = settings.current()
-            val parser = ReminderUtteranceParser(current.dayParts, dateOrder())
             val now = now()
-            val parsed = parser.parse(heard, now)
+            val parsed = withContext(Dispatchers.Default) { ReminderUtteranceParser(current.dayParts, dateOrder()).parse(heard, now) }
             val title = parsed.title.ifBlank { heard.trim().replaceFirstChar { it.titlecase(Locale.getDefault()) } }
             val at = parsed.at?.atZone(clock.zone)
             val mode = if (parsed.ringRequested) RingMode.RING else current.defaultRingMode

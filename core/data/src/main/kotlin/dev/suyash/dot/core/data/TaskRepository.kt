@@ -7,15 +7,20 @@ import dev.suyash.dot.core.domain.model.ListId
 import dev.suyash.dot.core.domain.model.Task
 import dev.suyash.dot.core.domain.model.TaskId
 import dev.suyash.dot.core.domain.model.TaskList
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Read side. All flows re-emit automatically when the underlying rows change. */
+/**
+ * Read side. All flows re-emit automatically when the underlying rows change, and are main-safe:
+ * rows are mapped and compared on a background dispatcher, whoever collects them.
+ */
 @Singleton
 class TaskRepository @Inject constructor(private val database: DotDatabase) {
 
@@ -23,35 +28,37 @@ class TaskRepository @Inject constructor(private val database: DotDatabase) {
     private val lists get() = database.taskListDao()
 
     fun observeLists(): Flow<List<TaskList>> =
-        lists.observeAll().map { rows -> rows.map { it.toList() } }.distinctUntilChanged()
+        lists.observeAll().map { rows -> rows.map { it.toList() } }.distinctUntilChanged().offMain()
 
     fun observeTasks(listId: ListId): Flow<List<Task>> =
-        tasks.observeInList(listId.value).map { rows -> rows.map { it.toTask() } }.distinctUntilChanged()
+        tasks.observeInList(listId.value).map { rows -> rows.map { it.toTask() } }.distinctUntilChanged().offMain()
 
     fun observeStarred(): Flow<List<Task>> =
-        tasks.observeStarred().map { rows -> rows.map { it.toTask() } }.distinctUntilChanged()
+        tasks.observeStarred().map { rows -> rows.map { it.toTask() } }.distinctUntilChanged().offMain()
 
     /** Every task in every list (for Today / Upcoming). */
     fun observeAll(): Flow<List<Task>> =
-        tasks.observeAll().map { rows -> rows.map { it.toTask() } }.distinctUntilChanged()
+        tasks.observeAll().map { rows -> rows.map { it.toTask() } }.distinctUntilChanged().offMain()
 
     /** Tasks whose title or notes contain [query] (case-insensitive), open ones first. */
     fun search(query: String): Flow<List<Task>> {
         val escaped = query.trim().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        return tasks.search("%$escaped%").map { rows -> rows.map { it.toTask() } }.distinctUntilChanged()
+        return tasks.search("%$escaped%").map { rows -> rows.map { it.toTask() } }.distinctUntilChanged().offMain()
     }
 
     fun observeUpcoming(limit: Int): Flow<List<Task>> =
-        tasks.observeUpcoming(limit).map { rows -> rows.map { it.toTask() } }.distinctUntilChanged()
+        tasks.observeUpcoming(limit).map { rows -> rows.map { it.toTask() } }.distinctUntilChanged().offMain()
 
     fun observeOpenCount(): Flow<Int> = tasks.observeOpenCount().distinctUntilChanged()
+
+    private fun <T> Flow<T>.offMain(): Flow<T> = flowOn(Dispatchers.Default)
 
     /** One-shot reads for widgets (which render snapshots, not live flows). */
     suspend fun upcomingSnapshot(limit: Int): List<Task> = observeUpcoming(limit).first()
 
     suspend fun openCountSnapshot(): Int = tasks.observeOpenCount().first()
 
-    fun observeTask(id: TaskId): Flow<Task?> = tasks.observe(id.value).map { it?.takeUnless { row -> row.deleted }?.toTask() }
+    fun observeTask(id: TaskId): Flow<Task?> = tasks.observe(id.value).map { it?.takeUnless { row -> row.deleted }?.toTask() }.offMain()
 
     suspend fun getTask(id: TaskId): Task? = tasks.get(id.value)?.takeUnless { it.deleted }?.toTask()
 

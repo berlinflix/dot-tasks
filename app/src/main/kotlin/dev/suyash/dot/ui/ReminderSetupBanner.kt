@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +36,10 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import dev.suyash.dot.core.designsystem.component.DotCard
 import dev.suyash.dot.core.designsystem.theme.DotTheme
 import dev.suyash.dot.feature.reminders.ReminderPermissions
+import dev.suyash.dot.feature.reminders.ReminderReadiness
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Tells the user exactly what reminders still need, with one-tap fixes. Re-checks every time the app
@@ -44,14 +49,18 @@ import dev.suyash.dot.feature.reminders.ReminderPermissions
 fun ReminderSetupBanner(showWhenReady: Boolean = false) {
     val context = LocalContext.current
     val permissions = remember(context) { ReminderPermissions(context.applicationContext) }
-    var readiness by remember { mutableStateOf(permissions.readiness()) }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { readiness = permissions.readiness() }
+    // A check is several system calls, so it runs off the main thread; nothing shows until the first one.
+    var checked by remember { mutableStateOf<ReminderReadiness?>(null) }
+    val scope = rememberCoroutineScope()
+    val refresh = { scope.launch { checked = withContext(Dispatchers.Default) { permissions.readiness() } } }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { refresh() }
 
     val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        readiness = permissions.readiness()
+        refresh()
         if (!granted) context.safeStart(permissions.appNotificationSettings())
     }
 
+    val readiness = checked ?: return
     if (readiness.allGood && !showWhenReady) return
 
     DotCard(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {

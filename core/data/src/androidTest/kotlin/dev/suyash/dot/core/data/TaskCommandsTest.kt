@@ -340,11 +340,17 @@ class TaskCommandsTest {
     fun encryptedDatabaseFile_isNotPlaintextSqlite() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         DotDatabase.deleteFiles(context)
-        val passphrase = "x'${"ab".repeat(32)}'".toByteArray()
-        val encrypted = DotDatabase.encrypted(context, passphrase)
+        var keyReads = 0
+        val encrypted = DotDatabase.encrypted(context) {
+            keyReads++
+            "x'${"ab".repeat(32)}'".toByteArray()
+        }
+        // Building the database must not read the key; the first query does.
+        assertThat(keyReads).isEqualTo(0)
         runTest {
             TaskCommands(encrypted, clock, HlcClock("n"), ChangeNotifier(emptySet())).ensureDefaultList()
         }
+        assertThat(keyReads).isEqualTo(1)
         encrypted.close()
         val header = File(context.getDatabasePath(DotDatabase.FILE_NAME).path).readBytes().copyOf(16)
         assertThat(String(header, Charsets.US_ASCII)).doesNotContain("SQLite format 3")

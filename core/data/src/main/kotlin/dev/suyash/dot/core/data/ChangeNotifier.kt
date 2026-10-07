@@ -3,6 +3,8 @@ package dev.suyash.dot.core.data
 import android.util.Log
 import dev.suyash.dot.core.domain.events.TaskChange
 import dev.suyash.dot.core.domain.events.TaskChangeObserver
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -11,7 +13,11 @@ import javax.inject.Singleton
 class ChangeNotifier @Inject constructor(
     private val observers: Set<@JvmSuppressWildcards TaskChangeObserver>,
 ) {
-    suspend fun notify(change: TaskChange) {
+    /**
+     * Observers make system calls (AlarmManager, widgets, WorkManager) and write a small file, so they
+     * never run on the caller's thread, which is the main thread for edits made in the UI.
+     */
+    suspend fun notify(change: TaskChange) = withContext(Dispatchers.IO) {
         for (observer in observers) {
             try {
                 observer.onChanged(change)

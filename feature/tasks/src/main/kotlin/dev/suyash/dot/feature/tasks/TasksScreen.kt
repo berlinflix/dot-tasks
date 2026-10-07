@@ -2,6 +2,7 @@ package dev.suyash.dot.feature.tasks
 
 import android.content.Context
 import android.content.Intent
+import androidx.activity.compose.ReportDrawnWhen
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -82,6 +83,7 @@ import dev.suyash.dot.feature.tasks.ui.rememberDragReorderState
 import kotlinx.coroutines.launch
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
 
 /**
  * Home: views (Today, Upcoming, Starred) and lists, sectioned open tasks with nested subtasks, a
@@ -101,6 +103,8 @@ fun TasksRoute(
     viewModel: TasksViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // Startup is "fully drawn" once the tasks are on screen (Android vitals and benchmarks measure to here).
+    ReportDrawnWhen { !state.loading }
     val context = LocalContext.current
     val formats = remember(context) { TimeFormats.from(context) }
     val snackbar = remember { SnackbarHostState() }
@@ -151,7 +155,9 @@ fun TasksRoute(
         }
     }
 
-    val now = remember(state) { viewModel.now() }
+    // Minute precision (the state re-emits every minute): rows whose task didn't change keep an equal
+    // `now` and skip recomposition instead of all redrawing on every update.
+    val now = remember(state) { viewModel.now().truncatedTo(ChronoUnit.MINUTES) }
     val listState = rememberLazyListState()
     val drag = rememberDragReorderState(listState)
     // Each view starts at the top.

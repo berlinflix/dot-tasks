@@ -15,6 +15,7 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 
 /** How ambiguous numeric dates like 5/10 are read. */
 enum class DateOrder { DAY_MONTH, MONTH_DAY }
@@ -131,10 +132,10 @@ class ReminderUtteranceParser(
         val cleaned = input
             .replace('’', '\'')
             .replace('“', ' ').replace('”', ' ').replace('"', ' ')
-            .replace(Regex("(?i)\\b([ap])\\.\\s?m\\b\\.?"), "$1m")
+            .replace(DOTTED_MERIDIEM, "$1m")
             .trim()
         if (cleaned.isEmpty()) return emptyList()
-        val tokens = cleaned.split(Regex("\\s+")).map { Token(it, normalizeWord(it)) }
+        val tokens = cleaned.split(WHITESPACE).map { Token(it, normalizeWord(it)) }
         return mergeCompoundNumbers(tokens)
     }
 
@@ -267,7 +268,8 @@ class ReminderUtteranceParser(
         pattern: String,
         val apply: (MatchResult, TemporalState, ZonedDateTime) -> Boolean,
     ) {
-        val regex = Regex(pattern)
+        /** Compiled once per process and shared by every parser (the quick-add preview parses often). */
+        val regex: Regex = COMPILED_PATTERNS.getOrPut(pattern) { Regex(pattern) }
     }
 
     /** Ordered from most to least specific; a later extractor never re-uses tokens an earlier one took. */
@@ -749,6 +751,10 @@ class ReminderUtteranceParser(
     private class Prefix(val words: List<String>, val ring: Boolean, val wake: Boolean, val defaultTitle: String)
 
     private companion object {
+        val COMPILED_PATTERNS = ConcurrentHashMap<String, Regex>()
+        val DOTTED_MERIDIEM = Regex("(?i)\\b([ap])\\.\\s?m\\b\\.?")
+        val WHITESPACE = Regex("\\s+")
+
         const val MONTHS =
             "jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|" +
                 "sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?"

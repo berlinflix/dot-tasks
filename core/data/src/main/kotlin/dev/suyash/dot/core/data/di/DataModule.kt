@@ -66,19 +66,22 @@ object DataModule {
     fun database(@ApplicationContext context: Context): DotDatabase {
         KeystoreWrapper.strongBoxSupported =
             context.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE)
-        val keys = DatabaseKeyProvider(
-            keyFile = File(context.noBackupFilesDir, "dot_db.key"),
-            wrapper = KeystoreWrapper(alias = "dot.db.kek"),
-        )
-        val passphrase = when (val result = keys.obtainKey()) {
-            is DatabaseKeyProvider.Result.Ready -> result.passphrase
-            is DatabaseKeyProvider.Result.Lost -> {
-                Log.w("DataModule", "Database key was lost; recreating the local database", result.cause)
-                DotDatabase.deleteFiles(context)
-                result.passphrase
+        // This provider often runs on the main thread (ViewModel injection): the key is read from the
+        // Keystore only when Room first opens the file, on a background thread.
+        return DotDatabase.encrypted(context) {
+            val keys = DatabaseKeyProvider(
+                keyFile = File(context.noBackupFilesDir, "dot_db.key"),
+                wrapper = KeystoreWrapper(alias = "dot.db.kek"),
+            )
+            when (val result = keys.obtainKey()) {
+                is DatabaseKeyProvider.Result.Ready -> result.passphrase
+                is DatabaseKeyProvider.Result.Lost -> {
+                    Log.w("DataModule", "Database key was lost; recreating the local database", result.cause)
+                    DotDatabase.deleteFiles(context)
+                    result.passphrase
+                }
             }
         }
-        return DotDatabase.encrypted(context, passphrase)
     }
 
     @Provides

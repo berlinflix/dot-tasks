@@ -18,6 +18,7 @@ import dev.suyash.dot.core.domain.nlp.DateOrder
 import dev.suyash.dot.core.domain.nlp.ParsedUtterance
 import dev.suyash.dot.core.domain.nlp.ReminderUtteranceParser
 import dev.suyash.dot.core.domain.repeat.RepeatRule
+import dev.suyash.dot.core.domain.time.DayParts
 import dev.suyash.dot.core.domain.view.SortOrder
 import dev.suyash.dot.core.domain.view.TaskSection
 import dev.suyash.dot.core.domain.view.TaskViews
@@ -28,6 +29,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -40,8 +42,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Clock
 import java.time.LocalDate
 import java.time.LocalTime
@@ -167,7 +171,11 @@ class TasksViewModel @Inject constructor(
             results = results.toImmutableList(),
             settings = input.settings,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TasksUiState())
+    }
+        // Sorting, grouping and sectioning every task runs on each change and every minute: keep it off
+        // the main thread so the list never drops frames.
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TasksUiState())
 
     private class Inputs(val lists: List<TaskList>, val selection: ListSelection, val tasks: List<Task>, val settings: UserSettings)
 
@@ -201,17 +209,17 @@ class TasksViewModel @Inject constructor(
     }
 
     /** Parses free text ("call mom tomorrow 6pm", "gym every monday 7am") exactly like voice input does. */
-    fun parse(text: String): ParsedUtterance = parser().parse(text, now())
+    suspend fun parse(text: String): ParsedUtterance = withContext(Dispatchers.Default) { parser().parse(text, now()) }
 
     fun quickAdd(text: String) {
-        val parsed = parse(text)
-        val title = parsed.title.ifBlank { text.trim() }
-        if (title.isBlank()) return
         val sel = selection.value
-        val listId = (sel as? ListSelection.InList)?.id ?: TaskCommands.DEFAULT_LIST_ID
-        val zone = clock.zone
-        val at = parsed.at?.atZone(zone)
         viewModelScope.launch {
+            val parsed = parse(text)
+            val title = parsed.title.ifBlank { text.trim() }
+            if (title.isBlank()) return@launch
+            val listId = (sel as? ListSelection.InList)?.id ?: TaskCommands.DEFAULT_LIST_ID
+            val zone = clock.zone
+            val at = parsed.at?.atZone(zone)
             commands.createTask(
                 TaskDraft(
                     listId = listId,
@@ -313,10 +321,20 @@ class TasksViewModel @Inject constructor(
 
     fun taskById(id: TaskId): Task? = state.value.tasks[id]
 
+    /** Reused while the day-part settings and date order stay the same (the live preview parses often). */
+    private var cachedParser: ReminderUtteranceParser? = null
+    private var cachedParserKey: Pair<DayParts, DateOrder>? = null
+
+    @Synchronized
     private fun parser(): ReminderUtteranceParser {
         val country = Locale.getDefault().country
         val order = if (country in MONTH_FIRST_COUNTRIES) DateOrder.MONTH_DAY else DateOrder.DAY_MONTH
-        return ReminderUtteranceParser(state.value.settings.dayParts, order)
+        val key = state.value.settings.dayParts to order
+        cachedParser?.takeIf { cachedParserKey == key }?.let { return it }
+        return ReminderUtteranceParser(key.first, key.second).also {
+            cachedParser = it
+            cachedParserKey = key
+        }
     }
 
     private companion object {
