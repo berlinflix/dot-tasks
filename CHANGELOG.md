@@ -3,7 +3,7 @@
 All notable changes to Dot. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and versions follow [Semantic Versioning](https://semver.org/).
 
-## [1.0.1] — Unreleased
+## [1.0.1] — 2026-10-08
 
 ### Faster
 - Startup and first use are compiled ahead of time (a Baseline Profile and an optimized dex layout), including the
@@ -47,5 +47,5 @@ First public release.
 - SQLCipher database, no backups, no trackers; optional app lock; overlay protection on sensitive screens.
 - Content-free deletion markers that expire after 30 days; account deletion in the app and on the web; JSON export.
 
-[1.0.1]: https://github.com/berlinflix/dot-tasks/compare/v1.0.0...main
+[1.0.1]: https://github.com/berlinflix/dot-tasks/releases/tag/v1.0.1
 [1.0.0]: https://github.com/berlinflix/dot-tasks/releases/tag/v1.0.0
