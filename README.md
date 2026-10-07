@@ -134,6 +134,17 @@ cd firebase && npm --prefix rules-test install && firebase emulators:exec --only
 
 CI runs the unit tests, lint, a debug build and the Firestore rules tests on every push.
 
+### Performance
+
+Release builds ship a Baseline Profile and a startup profile (`app/src/release/generated/baselineProfiles`), so
+startup and first use are compiled ahead of time on install. Regenerate them after larger UI changes, and measure
+cold start with and without them, on a device or emulator running Android 13+:
+
+```bash
+./gradlew :app:generateBaselineProfile
+./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest
+```
+
 ## Publishing
 
 See [docs/play-store.md](docs/play-store.md): the full Play Console checklist with Data safety answers,

@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.dot.hilt)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.androidx.baselineprofile)
 }
 
 // Release signing (the Play upload key) comes from keystore.properties at the project root, which is
@@ -20,8 +21,8 @@ android {
 
     defaultConfig {
         applicationId = "dev.suyash.dot"
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.0.1"
     }
 
     signingConfigs {
@@ -56,6 +57,23 @@ android {
     }
 }
 
+// Baseline Profile + startup profile, generated on a device by :baselineprofile and committed under
+// src/release/generated/baselineProfiles, so regular builds and CI never need a device:
+//   ./gradlew :app:generateBaselineProfile
+baselineProfile {
+    automaticGenerationDuringBuild = false
+    saveInSrc = true
+    // R8 lays out the dex so code used at startup is loaded together.
+    dexLayoutOptimization = true
+}
+
+androidComponents {
+    // The plugin's nonMinifiedRelease and benchmarkRelease build types must run the release code
+    // (Play Integrity App Check), not the debug provider.
+    onVariants(selector().withBuildType("nonMinifiedRelease")) { it.sources.kotlin?.addStaticSourceDirectory("src/release/kotlin") }
+    onVariants(selector().withBuildType("benchmarkRelease")) { it.sources.kotlin?.addStaticSourceDirectory("src/release/kotlin") }
+}
+
 dependencies {
     implementation(project(":core:auth"))
     implementation(project(":core:data"))
@@ -82,9 +100,10 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.kotlinx.serialization.json)
     ksp(libs.androidx.hilt.compiler)
+    baselineProfile(project(":baselineprofile"))
 
     implementation(platform(libs.firebase.bom))
-    // App Check: Play Integrity in release; the debug provider never ships in release builds.
-    releaseImplementation(libs.firebase.appcheck.playintegrity)
+    // App Check: Play Integrity outside debug builds; the debug provider never ships in release builds.
+    implementation(libs.firebase.appcheck.playintegrity)
     debugImplementation(libs.firebase.appcheck.debug)
 }

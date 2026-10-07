@@ -1,0 +1,1 @@
+Faster and smoother: startup is compiled ahead of time and heavy work no longer runs on the main thread. Privacy: other apps can no longer open voice capture, widgets hide task titles while App lock is on, and the ring screen hides titles if the phone locks while it rings.

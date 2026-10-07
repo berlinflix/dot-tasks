@@ -30,6 +30,7 @@ dependencyResolutionManagement {
 rootProject.name = "Dot"
 
 include(":app")
+include(":baselineprofile")
 include(":core:auth")
 include(":core:crypto")
 include(":core:data")
