@@ -1,7 +1,7 @@
 [versions]
 # Build toolchain. AGP 9.2.x is the newest line supported by Android Studio Panda 4 (2025.3.4).
 agp = "9.2.1"
-kotlin = "2.4.20"
+kotlin = "2.4.21"
 ksp = "2.3.12"
 
 # Android SDK levels
