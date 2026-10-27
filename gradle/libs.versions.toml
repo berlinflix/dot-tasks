@@ -30,7 +30,7 @@ work = "2.12.0"
 # Identity, Firebase, Google Play services
 blockstore = "16.4.0"
 credentials = "1.6.0"
-firebaseBom = "34.19.0"
+firebaseBom = "35.1.0"
 googleServices = "4.5.0"
 googleid = "1.2.1"
 
